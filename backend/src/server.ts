@@ -1,14 +1,28 @@
-import express from 'express';
+import dotenv from 'dotenv';
+import app from './app.js';
 
-const app = express();
-const port = process.env.PORT || 4000;
+dotenv.config();
 
-app.use(express.json());
+const PORT = parseInt(process.env.PORT || '4000', 10);
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'sewflow-backend' });
+const server = app.listen(PORT, () => {
+  console.log(`[SewFlow API] Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
 });
 
-app.listen(port, () => {
-  console.log(`Backend running on http://localhost:${port}`);
+process.on('SIGTERM', () => {
+  console.log('[SewFlow API] SIGTERM received. Closing HTTP server gracefully...');
+  server.close(() => {
+    console.log('[SewFlow API] HTTP server closed.');
+    process.exit(0);
+  });
 });
+
+process.on('SIGINT', () => {
+  console.log('[SewFlow API] SIGINT received. Closing HTTP server gracefully...');
+  server.close(() => {
+    console.log('[SewFlow API] HTTP server closed.');
+    process.exit(0);
+  });
+});
+
+export default server;

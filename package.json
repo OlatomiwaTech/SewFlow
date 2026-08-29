@@ -12,9 +12,9 @@
     "start": "npm run start --workspace frontend",
     "frontend": "npm run dev --workspace frontend",
     "backend": "npm run dev --workspace backend",
-    "db:generate": "npm run db:generate --workspace backend",
-    "db:push": "npm run db:push --workspace backend",
-    "db:migrate": "npm run db:migrate --workspace backend",
-    "db:studio": "npm run db:studio --workspace backend"
+    "typecheck": "npm run typecheck --workspace backend",
+    "prisma:generate": "npm run prisma:generate --workspace backend",
+    "prisma:validate": "npm run prisma:validate --workspace backend",
+    "prisma:studio": "npm run prisma:studio --workspace backend"
   }
 }
