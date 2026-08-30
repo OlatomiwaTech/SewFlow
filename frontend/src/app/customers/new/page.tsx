@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CustomerForm } from "@/components/customers/customer-form";
 import { apiClient } from "@/lib/api";
-import type { CreateCustomerInput } from "@/types/customer";
+import type { CreateCustomerInput, UpdateCustomerInput } from "@/types/customer";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
@@ -12,10 +12,10 @@ export default function NewCustomerPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (data: CreateCustomerInput) => {
+  const handleSubmit = async (data: CreateCustomerInput | UpdateCustomerInput) => {
     try {
       setIsLoading(true);
-      await apiClient.createCustomer(data);
+      await apiClient.createCustomer(data as CreateCustomerInput);
       router.push("/customers");
     } catch (error) {
       console.error("Failed to create customer:", error);

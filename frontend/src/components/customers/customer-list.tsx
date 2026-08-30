@@ -13,13 +13,13 @@ export function CustomerList({
   customers,
   isLoading = false,
   onDelete,
-}: CustomerListProps) {
+}: Readonly<CustomerListProps>) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[...Array(6)].map((_, i) => (
+        {[...Array.from({ length: 6 })].map(() => (
           <div
-            key={i}
+            key={crypto.getRandomValues(new Uint8Array(16)).toString()}
             className="p-4 border rounded-lg bg-muted animate-pulse"
           />
         ))}

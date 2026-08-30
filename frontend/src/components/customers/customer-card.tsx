@@ -9,7 +9,7 @@ interface CustomerCardProps {
   onDelete?: (id: string) => void;
 }
 
-export function CustomerCard({ customer, onDelete }: CustomerCardProps) {
+export function CustomerCard({ customer, onDelete }: Readonly<CustomerCardProps>) {
   return (
     <div className="p-4 border rounded-lg shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-3">
@@ -29,6 +29,7 @@ export function CustomerCard({ customer, onDelete }: CustomerCardProps) {
           </Link>
           {onDelete && (
             <button
+              type="button"
               onClick={() => onDelete(customer.id)}
               className="p-2 hover:bg-destructive/10 text-destructive rounded-md transition-colors"
               title="Delete"

@@ -15,7 +15,7 @@ export function CustomerForm({
   onSubmit,
   isLoading = false,
   submitLabel = "Save Customer",
-}: CustomerFormProps) {
+}: Readonly<CustomerFormProps>) {
   const [formData, setFormData] = useState<CreateCustomerInput | UpdateCustomerInput>(
     initialData || {
       firstName: "",

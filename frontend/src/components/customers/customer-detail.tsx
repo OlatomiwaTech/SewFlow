@@ -7,7 +7,7 @@ interface CustomerDetailProps {
   customer: Customer;
 }
 
-export function CustomerDetail({ customer }: CustomerDetailProps) {
+export function CustomerDetail({ customer }: Readonly<CustomerDetailProps>) {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",

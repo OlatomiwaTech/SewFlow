@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 import type {
   CreateCustomerInput,
-  CustomerQuery,
+  CustomerListQuery,
   UpdateCustomerInput,
 } from "../validators/customer.validator.js";
 
@@ -35,7 +35,7 @@ export async function createCustomer(
 
 export async function listCustomers(
   businessId: string,
-  query: CustomerQuery,
+  query: CustomerListQuery,
 ) {
   const { search, page, limit } = query;
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { CustomerForm } from "@/components/customers/customer-form";
 import { CustomerDetail } from "@/components/customers/customer-detail";
 import { apiClient } from "@/lib/api";
@@ -10,7 +10,6 @@ import Link from "next/link";
 import { ChevronLeft, Loader2 } from "lucide-react";
 
 export default function CustomerDetailPage() {
-  const router = useRouter();
   const params = useParams();
   const customerId = params.id as string;
 
@@ -21,6 +20,7 @@ export default function CustomerDetailPage() {
 
   useEffect(() => {
     fetchCustomer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId]);
 
   const fetchCustomer = async () => {
@@ -90,6 +90,7 @@ export default function CustomerDetailPage() {
                 submitLabel="Save Changes"
               />
               <button
+                type="button"
                 onClick={() => setIsEditing(false)}
                 disabled={isSaving}
                 className="mt-4 text-sm text-muted-foreground hover:text-foreground"
@@ -101,6 +102,7 @@ export default function CustomerDetailPage() {
             <div className="bg-card p-6 rounded-lg border">
               <CustomerDetail customer={customer} />
               <button
+                type="button"
                 onClick={() => setIsEditing(true)}
                 className="mt-6 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
               >

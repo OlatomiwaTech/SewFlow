@@ -4,7 +4,7 @@ import * as customerService from "../services/customer.service.js";
 import {
   createCustomerSchema,
   customerIdSchema,
-  customerQuerySchema,
+  customerListQuerySchema,
   updateCustomerSchema,
 } from "../validators/customer.validator.js";
 
@@ -46,7 +46,7 @@ export async function listCustomers(
 ) {
   try {
     const businessId = requireBusinessId(req);
-    const query = customerQuerySchema.parse(req.query);
+    const query = customerListQuerySchema.parse(req.query);
 
     const result = await customerService.listCustomers(
       businessId,
