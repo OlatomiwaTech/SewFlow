@@ -1,40 +1,39 @@
-import express, { type Express } from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
-import dotenv from 'dotenv';
-import apiRouter from './routes/index.js';
-import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
 
-dotenv.config();
+import authRoutes from "./routes/auth.routes.js";
+import { errorHandler } from "./middleware/errorHandler.js";
 
-export function createApp(): Express {
-  const app = express();
+const app = express();
 
-  // Security and standard middlewares
-  app.use(helmet());
-  app.use(
-    cors({
-      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-      credentials: true,
-    })
-  );
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+app.use(helmet());
 
-  if (process.env.NODE_ENV !== 'test') {
-    app.use(morgan('dev'));
-  }
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  }),
+);
 
-  // Mount API router
-  app.use('/api', apiRouter);
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true }));
 
-  // Error handling middleware
-  app.use(notFoundHandler);
-  app.use(errorHandler);
-
-  return app;
+if (process.env.NODE_ENV !== "test") {
+  app.use(morgan("combined"));
 }
 
-const app = createApp();
+app.get("/api/health", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    service: "sewflow-api",
+    status: "healthy",
+  });
+});
+
+app.use("/api/auth", authRoutes);
+
+app.use(errorHandler);
+
 export default app;

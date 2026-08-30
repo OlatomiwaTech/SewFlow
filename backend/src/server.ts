@@ -1,28 +1,24 @@
-import dotenv from 'dotenv';
-import app from './app.js';
+import app from "./app.js";
+import { env } from "./config/env.js";
+import prisma from "./lib/prisma.js";
 
-dotenv.config();
-
-const PORT = parseInt(process.env.PORT || '4000', 10);
-
-const server = app.listen(PORT, () => {
-  console.log(`[SewFlow API] Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+const server = app.listen(env.PORT, () => {
+  console.log(`SewFlow API running on port ${env.PORT}`);
 });
 
-process.on('SIGTERM', () => {
-  console.log('[SewFlow API] SIGTERM received. Closing HTTP server gracefully...');
-  server.close(() => {
-    console.log('[SewFlow API] HTTP server closed.');
+async function shutdown(signal: string) {
+  console.log(`${signal} received. Shutting down...`);
+
+  server.close(async () => {
+    await prisma.$disconnect();
     process.exit(0);
   });
+}
+
+process.on("SIGTERM", () => {
+  void shutdown("SIGTERM");
 });
 
-process.on('SIGINT', () => {
-  console.log('[SewFlow API] SIGINT received. Closing HTTP server gracefully...');
-  server.close(() => {
-    console.log('[SewFlow API] HTTP server closed.');
-    process.exit(0);
-  });
+process.on("SIGINT", () => {
+  void shutdown("SIGINT");
 });
-
-export default server;
