@@ -20,7 +20,8 @@ model Business {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users User[]
+  users     User[]
+  customers Customer[]
 
   @@index([createdAt])
 }
@@ -36,11 +37,25 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  business Business @relation(
-    fields: [businessId],
-    references: [id],
-    onDelete: Cascade
-  )
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId])
+}
+model Customer {
+  id         String   @id @default(uuid())
+  businessId String
+  firstName  String
+  lastName   String?
+  phone      String
+  email      String?
+  address    String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([businessId, phone])
+  @@index([businessId, lastName, firstName])
 }
