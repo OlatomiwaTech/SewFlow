@@ -43,7 +43,7 @@ export default function CustomersPage() {
   };
 
   return (
-    <main className="space-y-8">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
         <header>
           <p className="text-sm text-muted-foreground">
@@ -82,6 +82,6 @@ export default function CustomersPage() {
           onDelete={handleDelete}
         />
       </div>
-    </main>
+    </div>
   );
 }

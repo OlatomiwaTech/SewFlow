@@ -52,7 +52,7 @@ export default function CustomerDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -104,7 +104,7 @@ export default function CustomerDetailPage() {
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="mt-6 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+                className="mt-6 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 font-medium text-sm"
               >
                 Edit Customer
               </button>
