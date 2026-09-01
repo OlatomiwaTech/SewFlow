@@ -10,6 +10,11 @@ import type {
   MeResponse,
   RegisterInput,
 } from "@/types/auth";
+import type {
+  CreateMeasurementInput,
+  Measurement,
+  UpdateMeasurementInput,
+} from "@/types/measurement";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
@@ -59,7 +64,7 @@ export async function api<T>(
   return response.json() as Promise<T>;
 }
 
-// ApiClient class for typed auth and customer operations
+// ApiClient class for typed operations
 class ApiClient {
   private readonly baseUrl: string;
 
@@ -164,6 +169,65 @@ class ApiClient {
     await this.request<void>(`/customers/${id}`, {
       method: "DELETE",
     });
+  }
+
+  // Measurement API endpoints
+  async listMeasurements(customerId: string): Promise<Measurement[]> {
+    const res = await this.request<{ success: boolean; data: Measurement[] }>(
+      `/customers/${customerId}/measurements`,
+    );
+    return res.data;
+  }
+
+  async getMeasurement(
+    customerId: string,
+    measurementId: string,
+  ): Promise<Measurement> {
+    const res = await this.request<{ success: boolean; data: Measurement }>(
+      `/customers/${customerId}/measurements/${measurementId}`,
+    );
+    return res.data;
+  }
+
+  async createMeasurement(
+    customerId: string,
+    input: CreateMeasurementInput,
+  ): Promise<Measurement> {
+    const res = await this.request<{ success: boolean; data: Measurement }>(
+      `/customers/${customerId}/measurements`,
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    );
+    return res.data;
+  }
+
+  async updateMeasurement(
+    customerId: string,
+    measurementId: string,
+    input: UpdateMeasurementInput,
+  ): Promise<Measurement> {
+    const res = await this.request<{ success: boolean; data: Measurement }>(
+      `/customers/${customerId}/measurements/${measurementId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      },
+    );
+    return res.data;
+  }
+
+  async deleteMeasurement(
+    customerId: string,
+    measurementId: string,
+  ): Promise<void> {
+    await this.request<void>(
+      `/customers/${customerId}/measurements/${measurementId}`,
+      {
+        method: "DELETE",
+      },
+    );
   }
 }
 
