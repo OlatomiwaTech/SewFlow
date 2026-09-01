@@ -1,4 +1,5 @@
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from "express";
+import { ZodError } from "zod";
 
 export class AppError extends Error {
   public statusCode: number;
@@ -12,10 +13,14 @@ export class AppError extends Error {
   }
 }
 
-export function notFoundHandler(req: Request, res: Response, _next: NextFunction): void {
+export function notFoundHandler(
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+): void {
   res.status(404).json({
     success: false,
-    message: `Resource not found: ${req.method} ${req.originalUrl}`,
+    error: `Resource not found: ${req.method} ${req.originalUrl}`,
   });
 }
 
@@ -23,18 +28,56 @@ export function errorHandler(
   err: Error | AppError,
   _req: Request,
   res: Response,
-  _next: NextFunction
+  _next: NextFunction,
 ): void {
-  const statusCode = err instanceof AppError ? err.statusCode : 500;
-  const message = err.message || 'Internal Server Error';
-
-  if (process.env.NODE_ENV === 'development' && !(err instanceof AppError)) {
-    console.error('[Unhandled Error]:', err);
+  if (err instanceof ZodError) {
+    res.status(400).json({
+      success: false,
+      error: "Validation failed.",
+      details: err.flatten().fieldErrors,
+    });
+    return;
   }
 
-  res.status(statusCode).json({
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({
+      success: false,
+      error: err.message,
+    });
+    return;
+  }
+
+  if (err.name === "CONFLICT") {
+    res.status(409).json({
+      success: false,
+      error: err.message,
+    });
+    return;
+  }
+
+  if (err.name === "UNAUTHORIZED") {
+    res.status(401).json({
+      success: false,
+      error: err.message,
+    });
+    return;
+  }
+
+  if (err.name === "NOT_FOUND") {
+    res.status(404).json({
+      success: false,
+      error: err.message,
+    });
+    return;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    console.error("[Unhandled Error]:", err);
+  }
+
+  res.status(500).json({
     success: false,
-    message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    error: "Internal server error.",
+    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 }

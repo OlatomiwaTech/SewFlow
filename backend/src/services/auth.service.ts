@@ -1,4 +1,5 @@
 import bcrypt from "bcrypt";
+import type { Prisma } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 import { signAccessToken } from "../lib/jwt.js";
 import type { LoginInput, RegisterInput } from "../validators/auth.validator.js";
@@ -43,7 +44,7 @@ export async function register(input: RegisterInput) {
 
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const business = await tx.business.create({
       data: {
         name: input.businessName,
