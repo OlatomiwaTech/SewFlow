@@ -6,6 +6,7 @@ import morgan from "morgan";
 import authRoutes from "./routes/auth.routes.js";
 import customerRoutes from "./routes/customer.routes.js";
 import healthRoutes from "./routes/health.routes.js";
+import measurementRoutes from "./routes/measurement.routes.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 
 const app = express();
@@ -28,6 +29,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/customers", customerRoutes);
+app.use("/api/customers", measurementRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

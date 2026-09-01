@@ -12,6 +12,11 @@ enum UserRole {
   STAFF
 }
 
+enum MeasurementUnit {
+  CM
+  INCH
+}
+
 model Business {
   id        String   @id @default(uuid())
   name      String
@@ -41,6 +46,7 @@ model User {
 
   @@index([businessId])
 }
+
 model Customer {
   id         String   @id @default(uuid())
   businessId String
@@ -53,9 +59,38 @@ model Customer {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  measurements Measurement[]
 
   @@index([businessId])
   @@index([businessId, phone])
   @@index([businessId, lastName, firstName])
+}
+
+model Measurement {
+  id            String          @id @default(uuid())
+  customerId    String
+  unit          MeasurementUnit @default(CM)
+
+  neck          Decimal?        @db.Decimal(10, 2)
+  shoulder      Decimal?        @db.Decimal(10, 2)
+  chest         Decimal?        @db.Decimal(10, 2)
+  waist         Decimal?        @db.Decimal(10, 2)
+  hip           Decimal?        @db.Decimal(10, 2)
+  sleeve        Decimal?        @db.Decimal(10, 2)
+  shirtLength   Decimal?        @db.Decimal(10, 2)
+  trouserLength Decimal?        @db.Decimal(10, 2)
+  thigh         Decimal?        @db.Decimal(10, 2)
+  knee          Decimal?        @db.Decimal(10, 2)
+  ankle         Decimal?        @db.Decimal(10, 2)
+
+  notes         String?
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([customerId, createdAt])
 }
