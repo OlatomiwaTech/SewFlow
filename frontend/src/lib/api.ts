@@ -4,6 +4,12 @@ import type {
   CustomerListResponse,
   UpdateCustomerInput,
 } from "@/types/customer";
+import type {
+  AuthResponse,
+  LoginInput,
+  MeResponse,
+  RegisterInput,
+} from "@/types/auth";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
@@ -31,8 +37,9 @@ export async function api<T>(
     "Content-Type": "application/json",
   };
   
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
   }
   
   const response = await fetch(url, {
@@ -52,7 +59,7 @@ export async function api<T>(
   return response.json() as Promise<T>;
 }
 
-// ApiClient class for typed customer operations
+// ApiClient class for typed auth and customer operations
 class ApiClient {
   private readonly baseUrl: string;
 
@@ -69,9 +76,10 @@ class ApiClient {
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
+      ...(options.headers as Record<string, string>),
     };
 
-    if (token) {
+    if (token && !headers.Authorization) {
       headers.Authorization = `Bearer ${token}`;
     }
 
@@ -90,6 +98,28 @@ class ApiClient {
     }
 
     return response.json();
+  }
+
+  // Auth API endpoints
+  async login(input: LoginInput): Promise<AuthResponse> {
+    const res = await this.request<{ success: boolean; data: AuthResponse }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return res.data;
+  }
+
+  async register(input: RegisterInput): Promise<AuthResponse> {
+    const res = await this.request<{ success: boolean; data: AuthResponse }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return res.data;
+  }
+
+  async getCurrentUser(): Promise<MeResponse> {
+    const res = await this.request<{ success: boolean; data: MeResponse }>("/auth/me");
+    return res.data;
   }
 
   // Customer API endpoints
