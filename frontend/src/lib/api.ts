@@ -5,7 +5,19 @@ import type {
   UpdateCustomerInput,
 } from "@/types/customer";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+
+function formatUrl(baseUrl: string, path: string): string {
+  const cleanBase = baseUrl.replace(/\/$/, "");
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  if (cleanBase.endsWith("/api") && cleanPath.startsWith("/api/")) {
+    return `${cleanBase}${cleanPath.slice(4)}`;
+  }
+  if (!cleanBase.endsWith("/api") && !cleanPath.startsWith("/api/")) {
+    return `${cleanBase}/api${cleanPath}`;
+  }
+  return `${cleanBase}${cleanPath}`;
+}
 
 // Utility function for general API requests
 export async function api<T>(
@@ -13,7 +25,7 @@ export async function api<T>(
   options: { token?: string; method?: string; body?: string } & RequestInit = {},
 ): Promise<T> {
   const { token, ...fetchOptions } = options;
-  const url = `${API_BASE_URL}${path}`;
+  const url = formatUrl(API_BASE_URL, path);
   
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -28,9 +40,13 @@ export async function api<T>(
     headers,
   });
   
+  if (response.status === 204) {
+    return null as T;
+  }
+
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "An error occurred");
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || "An error occurred");
   }
   
   return response.json() as Promise<T>;
@@ -48,7 +64,7 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {},
   ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    const url = formatUrl(this.baseUrl, endpoint);
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
     const headers: Record<string, string> = {
@@ -64,9 +80,13 @@ class ApiClient {
       headers,
     });
 
+    if (response.status === 204) {
+      return null as T;
+    }
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "An error occurred");
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || errorData.message || "An error occurred");
     }
 
     return response.json();
@@ -74,10 +94,11 @@ class ApiClient {
 
   // Customer API endpoints
   async createCustomer(input: CreateCustomerInput): Promise<Customer> {
-    return this.request("/customers", {
+    const res = await this.request<{ success: boolean; data: Customer }>("/customers", {
       method: "POST",
       body: JSON.stringify(input),
     });
+    return res.data;
   }
 
   async listCustomers(
@@ -90,25 +111,27 @@ class ApiClient {
       limit: limit.toString(),
       ...(search && { search }),
     });
-    return this.request(`/customers?${params}`);
+    return this.request<CustomerListResponse>(`/customers?${params}`);
   }
 
   async getCustomer(id: string): Promise<Customer> {
-    return this.request(`/customers/${id}`);
+    const res = await this.request<{ success: boolean; data: Customer }>(`/customers/${id}`);
+    return res.data;
   }
 
   async updateCustomer(
     id: string,
     input: UpdateCustomerInput,
   ): Promise<Customer> {
-    return this.request(`/customers/${id}`, {
-      method: "PUT",
+    const res = await this.request<{ success: boolean; data: Customer }>(`/customers/${id}`, {
+      method: "PATCH",
       body: JSON.stringify(input),
     });
+    return res.data;
   }
 
   async deleteCustomer(id: string): Promise<void> {
-    return this.request(`/customers/${id}`, {
+    await this.request<void>(`/customers/${id}`, {
       method: "DELETE",
     });
   }
