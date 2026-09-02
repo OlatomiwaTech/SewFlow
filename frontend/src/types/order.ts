@@ -1,3 +1,5 @@
+import type { Payment, PaymentStatus } from "./payment";
+
 export type OrderStatus =
   | "PENDING"
   | "IN_PROGRESS"
@@ -13,6 +15,9 @@ export interface Order {
   quantity: number;
   totalAmount: number | string;
   depositAmount: number | string;
+  totalPaid?: number | string;
+  balanceDue?: number | string;
+  paymentStatus?: PaymentStatus;
   status: OrderStatus;
   orderDate: string;
   expectedDate: string | null;
@@ -20,6 +25,7 @@ export interface Order {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  payments?: Payment[];
 }
 
 export interface CreateOrderInput {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Order } from "@/types/order";
 import { OrderDetail } from "./order-detail";
 import { OrderStatusBadge } from "./order-status-badge";
+import { PaymentStatusBadge } from "../payments/payment-status-badge";
 import { Plus, Shirt, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 
 interface OrderListProps {
@@ -12,6 +13,7 @@ interface OrderListProps {
   onAdd: () => void;
   onEdit: (order: Order) => void;
   onDelete: (orderId: string) => Promise<void>;
+  onOrderUpdated?: () => void;
 }
 
 export function OrderList({
@@ -20,6 +22,7 @@ export function OrderList({
   onAdd,
   onEdit,
   onDelete,
+  onOrderUpdated,
 }: Readonly<OrderListProps>) {
   const [expandedId, setExpandedId] = useState<string | null>(
     orders.length > 0 ? orders[0].id : null,
@@ -99,8 +102,9 @@ export function OrderList({
         {orders.map((o) => {
           const isExpanded = expandedId === o.id;
           const total = Number(o.totalAmount);
-          const deposit = Number(o.depositAmount);
-          const balance = Math.max(0, total - deposit);
+          const paid = o.totalPaid !== undefined ? Number(o.totalPaid) : Number(o.depositAmount);
+          const balance = o.balanceDue !== undefined ? Number(o.balanceDue) : Math.max(0, total - paid);
+          const pStatus = o.paymentStatus || (paid >= total ? "PAID" : paid > 0 ? "PARTIALLY_PAID" : "UNPAID");
 
           return (
             <div
@@ -115,12 +119,13 @@ export function OrderList({
                 <div className="flex items-center gap-3">
                   <Shirt className="h-5 w-5 text-primary" />
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm">{o.garmentType}</span>
                       <OrderStatusBadge status={o.status} />
+                      <PaymentStatusBadge status={pStatus} />
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Qty: {o.quantity} | Total: ₦{total.toLocaleString()} | Balance:{" "}
+                      Qty: {o.quantity} | Total: ₦{total.toLocaleString()} | Paid: ₦{paid.toLocaleString()} | Balance:{" "}
                       <span className={balance > 0 ? "text-amber-600 font-semibold" : "text-emerald-600 font-semibold"}>
                         ₦{balance.toLocaleString()}
                       </span>{" "}
@@ -148,6 +153,7 @@ export function OrderList({
                       order={o}
                       onEdit={() => onEdit(o)}
                       onDelete={() => handleDelete(o.id)}
+                      onOrderUpdated={onOrderUpdated}
                     />
                   </div>
                 </div>
