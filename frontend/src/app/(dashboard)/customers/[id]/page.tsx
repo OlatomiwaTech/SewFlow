@@ -370,6 +370,7 @@ export default function CustomerDetailPage() {
                 setOrderMode("edit");
               }}
               onDelete={handleDeleteOrder}
+              onOrderUpdated={fetchOrders}
             />
           )}
         </div>
