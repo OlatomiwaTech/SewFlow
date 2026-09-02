@@ -15,6 +15,11 @@ import type {
   Measurement,
   UpdateMeasurementInput,
 } from "@/types/measurement";
+import type {
+  CreateOrderInput,
+  Order,
+  UpdateOrderInput,
+} from "@/types/order";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
@@ -228,6 +233,56 @@ class ApiClient {
         method: "DELETE",
       },
     );
+  }
+
+  // Order API endpoints
+  async listOrders(customerId: string): Promise<Order[]> {
+    const res = await this.request<{ success: boolean; data: Order[] }>(
+      `/customers/${customerId}/orders`,
+    );
+    return res.data;
+  }
+
+  async getOrder(customerId: string, orderId: string): Promise<Order> {
+    const res = await this.request<{ success: boolean; data: Order }>(
+      `/customers/${customerId}/orders/${orderId}`,
+    );
+    return res.data;
+  }
+
+  async createOrder(
+    customerId: string,
+    input: CreateOrderInput,
+  ): Promise<Order> {
+    const res = await this.request<{ success: boolean; data: Order }>(
+      `/customers/${customerId}/orders`,
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    );
+    return res.data;
+  }
+
+  async updateOrder(
+    customerId: string,
+    orderId: string,
+    input: UpdateOrderInput,
+  ): Promise<Order> {
+    const res = await this.request<{ success: boolean; data: Order }>(
+      `/customers/${customerId}/orders/${orderId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      },
+    );
+    return res.data;
+  }
+
+  async deleteOrder(customerId: string, orderId: string): Promise<void> {
+    await this.request<void>(`/customers/${customerId}/orders/${orderId}`, {
+      method: "DELETE",
+    });
   }
 }
 

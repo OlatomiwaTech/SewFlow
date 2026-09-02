@@ -17,6 +17,14 @@ enum MeasurementUnit {
   INCH
 }
 
+enum OrderStatus {
+  PENDING
+  IN_PROGRESS
+  READY
+  DELIVERED
+  CANCELLED
+}
+
 model Business {
   id        String   @id @default(uuid())
   name      String
@@ -61,6 +69,7 @@ model Customer {
 
   business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
   measurements Measurement[]
+  orders       Order[]
 
   @@index([businessId])
   @@index([businessId, phone])
@@ -92,5 +101,34 @@ model Measurement {
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([customerId])
+  @@index([customerId, createdAt])
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  customerId    String
+
+  garmentType   String
+  description   String?
+  quantity      Int         @default(1)
+
+  totalAmount   Decimal     @db.Decimal(12, 2)
+  depositAmount Decimal     @default(0) @db.Decimal(12, 2)
+
+  status        OrderStatus @default(PENDING)
+
+  orderDate     DateTime    @default(now())
+  expectedDate  DateTime?
+  deliveredAt   DateTime?
+
+  notes         String?
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([customerId, status])
   @@index([customerId, createdAt])
 }
