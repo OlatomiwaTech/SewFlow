@@ -15,6 +15,16 @@ import type {
   Measurement,
   UpdateMeasurementInput,
 } from "@/types/measurement";
+import type {
+  CreateOrderInput,
+  Order,
+  UpdateOrderInput,
+} from "@/types/order";
+import type {
+  CreatePaymentInput,
+  Payment,
+  UpdatePaymentInput,
+} from "@/types/payment";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
@@ -224,6 +234,119 @@ class ApiClient {
   ): Promise<void> {
     await this.request<void>(
       `/customers/${customerId}/measurements/${measurementId}`,
+      {
+        method: "DELETE",
+      },
+    );
+  }
+
+  // Order API endpoints
+  async listOrders(customerId: string): Promise<Order[]> {
+    const res = await this.request<{ success: boolean; data: Order[] }>(
+      `/customers/${customerId}/orders`,
+    );
+    return res.data;
+  }
+
+  async getOrder(customerId: string, orderId: string): Promise<Order> {
+    const res = await this.request<{ success: boolean; data: Order }>(
+      `/customers/${customerId}/orders/${orderId}`,
+    );
+    return res.data;
+  }
+
+  async createOrder(
+    customerId: string,
+    input: CreateOrderInput,
+  ): Promise<Order> {
+    const res = await this.request<{ success: boolean; data: Order }>(
+      `/customers/${customerId}/orders`,
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    );
+    return res.data;
+  }
+
+  async updateOrder(
+    customerId: string,
+    orderId: string,
+    input: UpdateOrderInput,
+  ): Promise<Order> {
+    const res = await this.request<{ success: boolean; data: Order }>(
+      `/customers/${customerId}/orders/${orderId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      },
+    );
+    return res.data;
+  }
+
+  async deleteOrder(customerId: string, orderId: string): Promise<void> {
+    await this.request<void>(`/customers/${customerId}/orders/${orderId}`, {
+      method: "DELETE",
+    });
+  }
+
+  // Payment API endpoints
+  async listPayments(customerId: string, orderId: string): Promise<Payment[]> {
+    const res = await this.request<{ success: boolean; data: Payment[] }>(
+      `/customers/${customerId}/orders/${orderId}/payments`,
+    );
+    return res.data;
+  }
+
+  async getPayment(
+    customerId: string,
+    orderId: string,
+    paymentId: string,
+  ): Promise<Payment> {
+    const res = await this.request<{ success: boolean; data: Payment }>(
+      `/customers/${customerId}/orders/${orderId}/payments/${paymentId}`,
+    );
+    return res.data;
+  }
+
+  async createPayment(
+    customerId: string,
+    orderId: string,
+    input: CreatePaymentInput,
+  ): Promise<Payment> {
+    const res = await this.request<{ success: boolean; data: Payment }>(
+      `/customers/${customerId}/orders/${orderId}/payments`,
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    );
+    return res.data;
+  }
+
+  async updatePayment(
+    customerId: string,
+    orderId: string,
+    paymentId: string,
+    input: UpdatePaymentInput,
+  ): Promise<Payment> {
+    const res = await this.request<{ success: boolean; data: Payment }>(
+      `/customers/${customerId}/orders/${orderId}/payments/${paymentId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      },
+    );
+    return res.data;
+  }
+
+  async deletePayment(
+    customerId: string,
+    orderId: string,
+    paymentId: string,
+  ): Promise<void> {
+    await this.request<void>(
+      `/customers/${customerId}/orders/${orderId}/payments/${paymentId}`,
       {
         method: "DELETE",
       },

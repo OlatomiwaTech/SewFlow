@@ -6,17 +6,20 @@ import { CustomerForm } from "@/components/customers/customer-form";
 import { CustomerDetail } from "@/components/customers/customer-detail";
 import { MeasurementList } from "@/components/measurements/measurement-list";
 import { MeasurementForm } from "@/components/measurements/measurement-form";
+import { OrderList } from "@/components/orders/order-list";
+import { OrderForm } from "@/components/orders/order-form";
 import { apiClient } from "@/lib/api";
 import type { Customer, UpdateCustomerInput } from "@/types/customer";
 import type { CreateMeasurementInput, Measurement } from "@/types/measurement";
+import type { CreateOrderInput, Order, UpdateOrderInput } from "@/types/order";
 import Link from "next/link";
-import { ChevronLeft, Loader2, User, Ruler } from "lucide-react";
+import { ChevronLeft, Loader2, User, Ruler, Shirt } from "lucide-react";
 
 export default function CustomerDetailPage() {
   const params = useParams();
   const customerId = params.id as string;
 
-  const [activeTab, setActiveTab] = useState<"profile" | "measurements">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "measurements" | "orders">("profile");
 
   // Customer state
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -26,10 +29,17 @@ export default function CustomerDetailPage() {
 
   // Measurement state
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
-  const [isLoadingMeasurements, setIsLoadingLoadingMeasurements] = useState(false);
+  const [isLoadingMeasurements, setIsLoadingMeasurements] = useState(false);
   const [measurementMode, setMeasurementMode] = useState<"list" | "create" | "edit">("list");
   const [selectedMeasurement, setSelectedMeasurement] = useState<Measurement | null>(null);
   const [isSavingMeasurement, setIsSavingMeasurement] = useState(false);
+
+  // Order state
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [orderMode, setOrderMode] = useState<"list" | "create" | "edit">("list");
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
 
   const fetchCustomer = useCallback(async () => {
     try {
@@ -45,20 +55,33 @@ export default function CustomerDetailPage() {
 
   const fetchMeasurements = useCallback(async () => {
     try {
-      setIsLoadingLoadingMeasurements(true);
+      setIsLoadingMeasurements(true);
       const data = await apiClient.listMeasurements(customerId);
       setMeasurements(data);
     } catch (error) {
       console.error("Failed to fetch measurements:", error);
     } finally {
-      setIsLoadingLoadingMeasurements(false);
+      setIsLoadingMeasurements(false);
+    }
+  }, [customerId]);
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      setIsLoadingOrders(true);
+      const data = await apiClient.listOrders(customerId);
+      setOrders(data);
+    } catch (error) {
+      console.error("Failed to fetch orders:", error);
+    } finally {
+      setIsLoadingOrders(false);
     }
   }, [customerId]);
 
   useEffect(() => {
     fetchCustomer();
     fetchMeasurements();
-  }, [fetchCustomer, fetchMeasurements]);
+    fetchOrders();
+  }, [fetchCustomer, fetchMeasurements, fetchOrders]);
 
   const handleUpdateCustomer = async (data: UpdateCustomerInput) => {
     try {
@@ -103,6 +126,35 @@ export default function CustomerDetailPage() {
     await fetchMeasurements();
   };
 
+  const handleCreateOrder = async (data: CreateOrderInput | UpdateOrderInput) => {
+    try {
+      setIsSavingOrder(true);
+      await apiClient.createOrder(customerId, data as CreateOrderInput);
+      await fetchOrders();
+      setOrderMode("list");
+    } finally {
+      setIsSavingOrder(false);
+    }
+  };
+
+  const handleUpdateOrder = async (data: CreateOrderInput | UpdateOrderInput) => {
+    if (!selectedOrder) return;
+    try {
+      setIsSavingOrder(true);
+      await apiClient.updateOrder(customerId, selectedOrder.id, data as UpdateOrderInput);
+      await fetchOrders();
+      setSelectedOrder(null);
+      setOrderMode("list");
+    } finally {
+      setIsSavingOrder(false);
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    await apiClient.deleteOrder(customerId, orderId);
+    await fetchOrders();
+  };
+
   if (isLoadingCustomer) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -138,11 +190,11 @@ export default function CustomerDetailPage() {
       </div>
 
       {/* Tabs Header */}
-      <div className="flex border-b gap-2">
+      <div className="flex border-b gap-2 overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveTab("profile")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
             activeTab === "profile"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -155,7 +207,7 @@ export default function CustomerDetailPage() {
         <button
           type="button"
           onClick={() => setActiveTab("measurements")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
             activeTab === "measurements"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -166,6 +218,24 @@ export default function CustomerDetailPage() {
           {measurements.length > 0 && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
               {measurements.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("orders")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === "orders"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Shirt className="h-4 w-4" />
+          <span>Orders & Jobs</span>
+          {orders.length > 0 && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+              {orders.length}
             </span>
           )}
         </button>
@@ -254,6 +324,53 @@ export default function CustomerDetailPage() {
                 setMeasurementMode("edit");
               }}
               onDelete={handleDeleteMeasurement}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Tab 3: Orders */}
+      {activeTab === "orders" && (
+        <div className="bg-card p-6 rounded-xl border">
+          {orderMode === "create" && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold">Create New Order</h3>
+              <OrderForm
+                onSubmit={handleCreateOrder}
+                onCancel={() => setOrderMode("list")}
+                isLoading={isSavingOrder}
+                submitLabel="Create Order"
+              />
+            </div>
+          )}
+
+          {orderMode === "edit" && selectedOrder && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold">Edit Order / Job Details</h3>
+              <OrderForm
+                initialData={selectedOrder}
+                onSubmit={handleUpdateOrder}
+                onCancel={() => {
+                  setSelectedOrder(null);
+                  setOrderMode("list");
+                }}
+                isLoading={isSavingOrder}
+                submitLabel="Update Order"
+              />
+            </div>
+          )}
+
+          {orderMode === "list" && (
+            <OrderList
+              orders={orders}
+              isLoading={isLoadingOrders}
+              onAdd={() => setOrderMode("create")}
+              onEdit={(o) => {
+                setSelectedOrder(o);
+                setOrderMode("edit");
+              }}
+              onDelete={handleDeleteOrder}
+              onOrderUpdated={fetchOrders}
             />
           )}
         </div>
