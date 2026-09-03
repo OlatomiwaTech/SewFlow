@@ -18,6 +18,7 @@ import type {
 import type {
   CreateOrderInput,
   Order,
+  ProductionMetrics,
   UpdateOrderInput,
 } from "@/types/order";
 import type {
@@ -241,6 +242,30 @@ class ApiClient {
   }
 
   // Order API endpoints
+  async listAllOrders(query?: {
+    status?: string;
+    priority?: string;
+    search?: string;
+  }): Promise<Order[]> {
+    const params = new URLSearchParams();
+    if (query?.status) params.append("status", query.status);
+    if (query?.priority) params.append("priority", query.priority);
+    if (query?.search) params.append("search", query.search);
+
+    const queryString = params.toString() ? `?${params.toString()}` : "";
+    const res = await this.request<{ success: boolean; data: Order[] }>(
+      `/orders${queryString}`,
+    );
+    return res.data;
+  }
+
+  async getProductionMetrics(): Promise<ProductionMetrics> {
+    const res = await this.request<{ success: boolean; data: ProductionMetrics }>(
+      "/orders/metrics",
+    );
+    return res.data;
+  }
+
   async listOrders(customerId: string): Promise<Order[]> {
     const res = await this.request<{ success: boolean; data: Order[] }>(
       `/customers/${customerId}/orders`,

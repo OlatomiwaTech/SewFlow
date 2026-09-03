@@ -3,19 +3,26 @@ import {
   createOrder,
   deleteOrder,
   getOrder,
+  getProductionMetrics,
+  listAllOrders,
   listOrders,
   updateOrder,
 } from "../controllers/order.controller.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 
-const router = Router({ mergeParams: true });
+// Router for /api/customers/:customerId/orders
+export const customerOrderRouter = Router({ mergeParams: true });
+customerOrderRouter.use(requireAuth);
+customerOrderRouter.get("/:customerId/orders", listOrders);
+customerOrderRouter.post("/:customerId/orders", createOrder);
+customerOrderRouter.get("/:customerId/orders/:orderId", getOrder);
+customerOrderRouter.patch("/:customerId/orders/:orderId", updateOrder);
+customerOrderRouter.delete("/:customerId/orders/:orderId", deleteOrder);
 
-router.use(requireAuth);
+// Router for /api/orders (global workflow & metrics)
+export const globalOrderRouter = Router();
+globalOrderRouter.use(requireAuth);
+globalOrderRouter.get("/metrics", getProductionMetrics);
+globalOrderRouter.get("/", listAllOrders);
 
-router.get("/:customerId/orders", listOrders);
-router.post("/:customerId/orders", createOrder);
-router.get("/:customerId/orders/:orderId", getOrder);
-router.patch("/:customerId/orders/:orderId", updateOrder);
-router.delete("/:customerId/orders/:orderId", deleteOrder);
-
-export default router;
+export default customerOrderRouter;

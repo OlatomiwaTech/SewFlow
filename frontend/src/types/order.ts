@@ -1,11 +1,28 @@
+import type { Customer } from "./customer";
 import type { Payment, PaymentStatus } from "./payment";
 
 export type OrderStatus =
-  | "PENDING"
-  | "IN_PROGRESS"
+  | "NEW"
+  | "MEASURED"
+  | "CUTTING"
+  | "SEWING"
+  | "FITTING"
   | "READY"
   | "DELIVERED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "PENDING"
+  | "IN_PROGRESS";
+
+export type OrderPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+
+export interface OrderHistory {
+  id: string;
+  orderId: string;
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus;
+  note: string | null;
+  createdAt: string;
+}
 
 export interface Order {
   id: string;
@@ -19,13 +36,16 @@ export interface Order {
   balanceDue?: number | string;
   paymentStatus?: PaymentStatus;
   status: OrderStatus;
+  priority: OrderPriority;
   orderDate: string;
   expectedDate: string | null;
   deliveredAt: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  customer?: Customer;
   payments?: Payment[];
+  history?: OrderHistory[];
 }
 
 export interface CreateOrderInput {
@@ -34,6 +54,8 @@ export interface CreateOrderInput {
   quantity?: number;
   totalAmount: number;
   depositAmount?: number;
+  priority?: OrderPriority;
+  status?: OrderStatus;
   expectedDate?: string | null;
   notes?: string | null;
 }
@@ -44,6 +66,7 @@ export interface UpdateOrderInput {
   quantity?: number;
   totalAmount?: number;
   depositAmount?: number;
+  priority?: OrderPriority;
   status?: OrderStatus;
   expectedDate?: string | null;
   notes?: string | null;
@@ -52,4 +75,15 @@ export interface UpdateOrderInput {
 export interface OrderListResponse {
   success: boolean;
   data: Order[];
+}
+
+export interface ProductionMetrics {
+  totalOrders: number;
+  activeOrders: number;
+  completedOrders: number;
+  urgentOrders: number;
+  totalRevenue: number;
+  totalCollected: number;
+  balanceOutstanding: number;
+  statusCounts: Record<OrderStatus, number>;
 }
