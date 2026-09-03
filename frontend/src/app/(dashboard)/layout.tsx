@@ -1,21 +1,27 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { Scissors, Users, LayoutDashboard, LogOut, Loader2, Building2 } from "lucide-react";
+import { Scissors, Users, LayoutDashboard, LogOut, Loader2, Building2, Menu, X } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, business, isAuthenticated, isLoading, logout } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push("/login");
     }
   }, [isLoading, isAuthenticated, router]);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   if (isLoading) {
     return (
@@ -39,8 +45,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ];
 
   return (
-    <div className="min-h-screen bg-muted/20 flex flex-col">
-      {/* Navigation Bar */}
+    <div className="min-h-screen bg-muted/20 flex flex-col pb-16 md:pb-0">
+      {/* Navigation Header */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
         <div className="container mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-8">
@@ -49,6 +55,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span>SewFlow</span>
             </Link>
 
+            {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -71,7 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </nav>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div className="hidden sm:flex flex-col text-right">
               <div className="flex items-center justify-end gap-1.5">
                 <span className="text-sm font-semibold">{user?.name}</span>
@@ -89,14 +96,84 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               type="button"
               onClick={logout}
               title="Sign out"
-              className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+              className="hidden sm:flex items-center gap-1.5 text-sm font-medium px-3 py-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
             >
               <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Logout</span>
+              <span>Logout</span>
+            </button>
+
+            {/* Mobile Menu Toggle */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 md:hidden text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent"
+              aria-label="Toggle Navigation Menu"
+            >
+              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
+
+        {/* Mobile Dropdown Navigation */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-b bg-background px-4 py-3 space-y-2">
+            <div className="pb-2 border-b text-xs text-muted-foreground flex justify-between items-center">
+              <div>
+                <div className="font-semibold text-foreground">{user?.name}</div>
+                <div>{business?.name}</div>
+              </div>
+              <button
+                type="button"
+                onClick={logout}
+                className="text-xs font-semibold text-destructive flex items-center gap-1"
+              >
+                <LogOut className="h-3.5 w-3.5" /> Logout
+              </button>
+            </div>
+
+            <nav className="flex flex-col gap-1">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        )}
       </header>
+
+      {/* Mobile Bottom Navigation Bar for Instant Access */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t md:hidden flex items-center justify-around py-2 px-4 shadow-lg">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex flex-col items-center gap-0.5 text-xs font-medium py-1 px-3 rounded-lg transition-colors ${
+                isActive ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
 
       {/* Main App Content */}
       <main className="container mx-auto max-w-6xl px-4 py-8 flex-1">{children}</main>
