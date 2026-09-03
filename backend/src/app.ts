@@ -6,6 +6,7 @@ import morgan from "morgan";
 import authRoutes from "./routes/auth.routes.js";
 import customerRoutes from "./routes/customer.routes.js";
 import healthRoutes from "./routes/health.routes.js";
+import inventoryRoutes from "./routes/inventory.routes.js";
 import measurementRoutes from "./routes/measurement.routes.js";
 import { customerOrderRouter, globalOrderRouter } from "./routes/order.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
@@ -35,6 +36,7 @@ app.use("/api/customers", measurementRoutes);
 app.use("/api/customers", customerOrderRouter);
 app.use("/api/orders", globalOrderRouter);
 app.use("/api/customers", paymentRoutes);
+app.use("/api/materials", inventoryRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

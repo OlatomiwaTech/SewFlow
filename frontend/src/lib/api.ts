@@ -26,6 +26,13 @@ import type {
   Payment,
   UpdatePaymentInput,
 } from "@/types/payment";
+import type {
+  AdjustStockInput,
+  CreateMaterialInput,
+  InventorySummary,
+  Material,
+  UpdateMaterialInput,
+} from "@/types/inventory";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
@@ -376,6 +383,80 @@ class ApiClient {
         method: "DELETE",
       },
     );
+  }
+
+  // Inventory API endpoints
+  async listMaterials(query?: {
+    category?: string;
+    status?: string;
+    search?: string;
+  }): Promise<Material[]> {
+    const params = new URLSearchParams();
+    if (query?.category) params.append("category", query.category);
+    if (query?.status) params.append("status", query.status);
+    if (query?.search) params.append("search", query.search);
+
+    const queryString = params.toString() ? `?${params.toString()}` : "";
+    const res = await this.request<{ success: boolean; data: Material[] }>(
+      `/materials${queryString}`,
+    );
+    return res.data;
+  }
+
+  async getInventorySummary(): Promise<InventorySummary> {
+    const res = await this.request<{ success: boolean; data: InventorySummary }>(
+      "/materials/summary",
+    );
+    return res.data;
+  }
+
+  async getMaterial(id: string): Promise<Material> {
+    const res = await this.request<{ success: boolean; data: Material }>(
+      `/materials/${id}`,
+    );
+    return res.data;
+  }
+
+  async createMaterial(input: CreateMaterialInput): Promise<Material> {
+    const res = await this.request<{ success: boolean; data: Material }>(
+      "/materials",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    );
+    return res.data;
+  }
+
+  async updateMaterial(
+    id: string,
+    input: UpdateMaterialInput,
+  ): Promise<Material> {
+    const res = await this.request<{ success: boolean; data: Material }>(
+      `/materials/${id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      },
+    );
+    return res.data;
+  }
+
+  async adjustStock(id: string, input: AdjustStockInput): Promise<Material> {
+    const res = await this.request<{ success: boolean; data: Material }>(
+      `/materials/${id}/stock`,
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    );
+    return res.data;
+  }
+
+  async deleteMaterial(id: string): Promise<void> {
+    await this.request<void>(`/materials/${id}`, {
+      method: "DELETE",
+    });
   }
 }
 

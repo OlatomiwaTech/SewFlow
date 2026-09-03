@@ -45,6 +45,36 @@ enum PaymentMethod {
   OTHER
 }
 
+enum MaterialCategory {
+  FABRIC
+  THREAD
+  BUTTON
+  ZIPPER
+  LINING
+  INTERFACING
+  ELASTIC
+  OTHER
+}
+
+enum MaterialUnit {
+  YARD
+  METER
+  PIECE
+  ROLL
+  SPOOL
+  PACK
+  OTHER
+}
+
+enum MovementType {
+  INITIAL_STOCK
+  PURCHASE
+  ADJUSTMENT
+  USAGE
+  RETURN
+  WASTE
+}
+
 model Business {
   id        String   @id @default(uuid())
   name      String
@@ -55,6 +85,7 @@ model Business {
 
   users     User[]
   customers Customer[]
+  materials Material[]
 
   @@index([createdAt])
 }
@@ -186,4 +217,44 @@ model Payment {
 
   @@index([orderId])
   @@index([orderId, paymentDate])
+}
+
+model Material {
+  id                String           @id @default(uuid())
+  businessId        String
+  sku               String?
+  name              String
+  description       String?
+  category          MaterialCategory @default(FABRIC)
+  unit              MaterialUnit     @default(YARD)
+  currentQuantity   Decimal          @default(0) @db.Decimal(12, 2)
+  minimumStockLevel Decimal          @default(0) @db.Decimal(12, 2)
+  costPerUnit       Decimal          @default(0) @db.Decimal(12, 2)
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  business       Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  stockMovements StockMovement[]
+
+  @@index([businessId])
+  @@index([businessId, category])
+  @@index([businessId, isActive])
+}
+
+model StockMovement {
+  id             String       @id @default(uuid())
+  materialId     String
+  type           MovementType
+  quantityChange Decimal      @db.Decimal(12, 2)
+  quantityBefore Decimal      @db.Decimal(12, 2)
+  quantityAfter  Decimal      @db.Decimal(12, 2)
+  notes          String?
+  createdById    String?
+  createdAt      DateTime     @default(now())
+
+  material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@index([materialId])
+  @@index([materialId, createdAt])
 }
