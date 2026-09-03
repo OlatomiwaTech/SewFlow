@@ -5,7 +5,19 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { apiClient } from "@/lib/api";
 import type { ProductionMetrics } from "@/types/order";
-import { Users, Plus, Building2, UserCheck, ShieldCheck, Scissors, AlertTriangle, CheckCircle, TrendingUp, ArrowRight } from "lucide-react";
+import {
+  Users,
+  Plus,
+  Building2,
+  UserCheck,
+  ShieldCheck,
+  Scissors,
+  AlertTriangle,
+  CheckCircle,
+  TrendingUp,
+  ArrowRight,
+  Package,
+} from "lucide-react";
 
 export default function DashboardPage() {
   const { user, business } = useAuth();
@@ -41,11 +53,11 @@ export default function DashboardPage() {
               Production Pipeline
             </Link>
             <Link
-              href="/customers/new"
+              href="/inventory"
               className="inline-flex items-center gap-2 px-4 py-2 border text-sm font-medium rounded-lg hover:bg-muted transition-colors"
             >
-              <Plus className="h-4 w-4" />
-              Add Customer
+              <Package className="h-4 w-4" />
+              Manage Inventory
             </Link>
           </div>
         </div>
@@ -129,7 +141,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Management Quick Cards */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-3">
         <Link
           href="/orders"
           className="group rounded-xl border bg-card p-6 hover:shadow-md transition-all space-y-3"
@@ -137,12 +149,28 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <Scissors className="h-8 w-8 text-primary" />
             <span className="text-xs font-semibold px-2.5 py-1 rounded bg-accent text-accent-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-colors flex items-center gap-1">
-              Kanban Pipeline <ArrowRight className="h-3 w-3" />
+              Pipeline <ArrowRight className="h-3 w-3" />
             </span>
           </div>
           <h2 className="text-xl font-bold">Production Workflow</h2>
           <p className="text-sm text-muted-foreground">
             Track garment orders through stages (New, Cutting, Sewing, Fitting, Ready), update priorities, and log status history.
+          </p>
+        </Link>
+
+        <Link
+          href="/inventory"
+          className="group rounded-xl border bg-card p-6 hover:shadow-md transition-all space-y-3"
+        >
+          <div className="flex items-center justify-between">
+            <Package className="h-8 w-8 text-primary" />
+            <span className="text-xs font-semibold px-2.5 py-1 rounded bg-accent text-accent-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-colors flex items-center gap-1">
+              Inventory <ArrowRight className="h-3 w-3" />
+            </span>
+          </div>
+          <h2 className="text-xl font-bold">Materials Catalogue</h2>
+          <p className="text-sm text-muted-foreground">
+            Manage fabric stocks, thread & trimmings, low stock alerts, unit costs, and auditable movement logs.
           </p>
         </Link>
 

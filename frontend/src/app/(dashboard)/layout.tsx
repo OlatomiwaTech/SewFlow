@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { Scissors, Users, LayoutDashboard, LogOut, Loader2, Building2, Menu, X } from "lucide-react";
+import { Scissors, Users, LayoutDashboard, LogOut, Loader2, Building2, Menu, X, Package } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -42,6 +42,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/customers", label: "Customers", icon: Users },
     { href: "/orders", label: "Production", icon: Scissors },
+    { href: "/inventory", label: "Inventory", icon: Package },
   ];
 
   return (
@@ -156,7 +157,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </header>
 
       {/* Mobile Bottom Navigation Bar for Instant Access */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t md:hidden flex items-center justify-around py-2 px-4 shadow-lg">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t md:hidden flex items-center justify-around py-2 px-2 shadow-lg">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname.startsWith(item.href);
@@ -164,7 +165,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-0.5 text-xs font-medium py-1 px-3 rounded-lg transition-colors ${
+              className={`flex flex-col items-center gap-0.5 text-[11px] font-medium py-1 px-2 rounded-lg transition-colors ${
                 isActive ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
             >
