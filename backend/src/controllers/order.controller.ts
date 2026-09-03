@@ -4,6 +4,7 @@ import { customerParamsSchema } from "../validators/measurement.validator.js";
 import {
   createOrderSchema,
   orderParamsSchema,
+  orderQuerySchema,
   updateOrderSchema,
 } from "../validators/order.validator.js";
 
@@ -14,6 +15,45 @@ function requireBusinessId(req: Request) {
     throw error;
   }
   return req.user.businessId;
+}
+
+export async function listAllOrders(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const businessId = requireBusinessId(req);
+    const query = orderQuerySchema.parse(req.query);
+
+    const orders = await orderService.listAllOrders(businessId, query);
+
+    return res.status(200).json({
+      success: true,
+      data: orders,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getProductionMetrics(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const businessId = requireBusinessId(req);
+
+    const metrics = await orderService.getProductionMetrics(businessId);
+
+    return res.status(200).json({
+      success: true,
+      data: metrics,
+    });
+  } catch (error) {
+    return next(error);
+  }
 }
 
 export async function listOrders(

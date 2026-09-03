@@ -1,5 +1,20 @@
 import { z } from "zod";
 
+export const orderStatusEnum = z.enum([
+  "NEW",
+  "MEASURED",
+  "CUTTING",
+  "SEWING",
+  "FITTING",
+  "READY",
+  "DELIVERED",
+  "CANCELLED",
+  "PENDING",
+  "IN_PROGRESS",
+]);
+
+export const orderPriorityEnum = z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]);
+
 export const createOrderSchema = z
   .object({
     garmentType: z
@@ -25,6 +40,8 @@ export const createOrderSchema = z
       .number()
       .min(0, "Deposit amount cannot be negative.")
       .default(0),
+    priority: orderPriorityEnum.default("MEDIUM"),
+    status: orderStatusEnum.default("NEW"),
     expectedDate: z
       .string()
       .datetime({ message: "Expected delivery date must be a valid ISO date." })
@@ -69,9 +86,8 @@ export const updateOrderSchema = z
       .number()
       .min(0, "Deposit amount cannot be negative.")
       .optional(),
-    status: z
-      .enum(["PENDING", "IN_PROGRESS", "READY", "DELIVERED", "CANCELLED"])
-      .optional(),
+    priority: orderPriorityEnum.optional(),
+    status: orderStatusEnum.optional(),
     expectedDate: z
       .string()
       .datetime({ message: "Expected delivery date must be a valid ISO date." })
@@ -100,6 +116,13 @@ export const updateOrderSchema = z
     },
   );
 
+export const orderQuerySchema = z.object({
+  status: orderStatusEnum.optional(),
+  priority: orderPriorityEnum.optional(),
+  customerId: z.string().uuid("Invalid customer ID.").optional(),
+  search: z.string().optional(),
+});
+
 export const orderParamsSchema = z.object({
   customerId: z.string().uuid("Invalid customer ID format."),
   orderId: z.string().uuid("Invalid order ID format."),
@@ -107,3 +130,4 @@ export const orderParamsSchema = z.object({
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type UpdateOrderInput = z.infer<typeof updateOrderSchema>;
+export type OrderQueryInput = z.infer<typeof orderQuerySchema>;

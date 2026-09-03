@@ -4,10 +4,11 @@ import { useState } from "react";
 import type {
   CreateOrderInput,
   Order,
+  OrderPriority,
   OrderStatus,
   UpdateOrderInput,
 } from "@/types/order";
-import { Loader2, DollarSign, Calendar, Shirt } from "lucide-react";
+import { Loader2, DollarSign, Calendar, Shirt, AlertCircle } from "lucide-react";
 
 interface OrderFormProps {
   initialData?: Order | null;
@@ -33,7 +34,8 @@ export function OrderForm({
   const [depositAmount, setDepositAmount] = useState<string>(
     initialData ? String(initialData.depositAmount) : "0",
   );
-  const [status, setStatus] = useState<OrderStatus>(initialData?.status || "PENDING");
+  const [priority, setPriority] = useState<OrderPriority>(initialData?.priority || "MEDIUM");
+  const [status, setStatus] = useState<OrderStatus>(initialData?.status || "NEW");
   const [expectedDate, setExpectedDate] = useState<string>(
     initialData?.expectedDate ? initialData.expectedDate.split("T")[0] : "",
   );
@@ -79,7 +81,8 @@ export function OrderForm({
       quantity,
       totalAmount: numTotal,
       depositAmount: numDeposit,
-      status: initialData ? status : undefined,
+      priority,
+      status: status,
       expectedDate: expectedDate ? new Date(expectedDate).toISOString() : null,
       notes: notes.trim() || null,
     };
@@ -94,7 +97,8 @@ export function OrderForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm font-medium border border-destructive/20">
+        <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm font-medium border border-destructive/20 flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </div>
       )}
@@ -208,34 +212,53 @@ export function OrderForm({
         </div>
       </div>
 
-      {/* Status & Schedule */}
+      {/* Priority, Status & Schedule */}
       <div className="space-y-4">
         <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 border-b pb-2">
           <Calendar className="h-4 w-4 text-primary" />
-          Status & Schedule
+          Priority, Status & Schedule
         </h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {initialData && (
-            <div className="space-y-1">
-              <label htmlFor="status" className="block text-xs font-semibold text-muted-foreground">
-                Order Status
-              </label>
-              <select
-                id="status"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as OrderStatus)}
-                className="w-full px-3 py-2 border rounded-lg bg-background text-sm outline-none focus:ring-2 focus:ring-primary"
-                disabled={isLoading}
-              >
-                <option value="PENDING">Pending</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="READY">Ready</option>
-                <option value="DELIVERED">Delivered</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-            </div>
-          )}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-1">
+            <label htmlFor="priority" className="block text-xs font-semibold text-muted-foreground">
+              Priority Level
+            </label>
+            <select
+              id="priority"
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as OrderPriority)}
+              className="w-full px-3 py-2 border rounded-lg bg-background text-sm outline-none focus:ring-2 focus:ring-primary"
+              disabled={isLoading}
+            >
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="URGENT">⚡ Urgent</option>
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label htmlFor="status" className="block text-xs font-semibold text-muted-foreground">
+              Order Stage
+            </label>
+            <select
+              id="status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as OrderStatus)}
+              className="w-full px-3 py-2 border rounded-lg bg-background text-sm outline-none focus:ring-2 focus:ring-primary"
+              disabled={isLoading}
+            >
+              <option value="NEW">New Order</option>
+              <option value="MEASURED">Measured</option>
+              <option value="CUTTING">Cutting</option>
+              <option value="SEWING">Sewing</option>
+              <option value="FITTING">Fitting</option>
+              <option value="READY">Ready for Pickup</option>
+              <option value="DELIVERED">Delivered</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+          </div>
 
           <div className="space-y-1">
             <label htmlFor="expectedDate" className="block text-xs font-semibold text-muted-foreground">

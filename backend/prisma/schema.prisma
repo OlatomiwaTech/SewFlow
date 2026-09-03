@@ -17,12 +17,24 @@ enum MeasurementUnit {
   INCH
 }
 
+enum OrderPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
 enum OrderStatus {
-  PENDING
-  IN_PROGRESS
+  NEW
+  MEASURED
+  CUTTING
+  SEWING
+  FITTING
   READY
   DELIVERED
   CANCELLED
+  PENDING
+  IN_PROGRESS
 }
 
 enum PaymentMethod {
@@ -113,33 +125,50 @@ model Measurement {
 }
 
 model Order {
-  id            String      @id @default(uuid())
+  id            String        @id @default(uuid())
   customerId    String
 
   garmentType   String
   description   String?
-  quantity      Int         @default(1)
+  quantity      Int           @default(1)
 
-  totalAmount   Decimal     @db.Decimal(12, 2)
-  depositAmount Decimal     @default(0) @db.Decimal(12, 2)
+  totalAmount   Decimal       @db.Decimal(12, 2)
+  depositAmount Decimal       @default(0) @db.Decimal(12, 2)
 
-  status        OrderStatus @default(PENDING)
+  status        OrderStatus   @default(NEW)
+  priority      OrderPriority @default(MEDIUM)
 
-  orderDate     DateTime    @default(now())
+  orderDate     DateTime      @default(now())
   expectedDate  DateTime?
   deliveredAt   DateTime?
 
   notes         String?
 
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  customer Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
   payments Payment[]
+  history  OrderHistory[]
 
   @@index([customerId])
   @@index([customerId, status])
   @@index([customerId, createdAt])
+}
+
+model OrderHistory {
+  id          String       @id @default(uuid())
+  orderId     String
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  note        String?
+  createdById String?
+  createdAt   DateTime     @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([orderId, createdAt])
 }
 
 model Payment {
