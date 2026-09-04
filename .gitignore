@@ -6,9 +6,16 @@ node_modules/
 .env.*
 !.env.example
 
-# Next.js
+# Next.js & TypeScript build outputs
 .next/
 out/
+*.tsbuildinfo
+
+# Database artifacts
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
 
 # Build output
 dist/

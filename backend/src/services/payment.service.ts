@@ -92,24 +92,18 @@ export async function createPayment(
 ) {
   const order = await verifyOrderOwnership(businessId, customerId, orderId);
 
-  const orderTotal = Number(order.totalAmount);
-  const currentTotalPaid = order.payments.reduce(
-    (sum, p) => sum + Number(p.amount),
-    0,
-  );
+  const orderTotal = Math.round(Number(order.totalAmount) * 100) / 100;
+  const currentTotalPaid = Math.round(
+    order.payments.reduce((sum, p) => sum + Number(p.amount), 0) * 100
+  ) / 100;
 
-  // If order has an unmigrated depositAmount and no Payment records exist, treat deposit as initial payment sum
-  const effectivePaid =
-    order.payments.length === 0 && Number(order.depositAmount) > 0
-      ? Number(order.depositAmount)
-      : currentTotalPaid;
-
-  const newTotalPaid = effectivePaid + input.amount;
+  const inputAmount = Math.round(input.amount * 100) / 100;
+  const newTotalPaid = Math.round((currentTotalPaid + inputAmount) * 100) / 100;
 
   if (newTotalPaid > orderTotal) {
-    const remaining = Math.max(0, orderTotal - effectivePaid);
+    const remaining = Math.max(0, Math.round((orderTotal - currentTotalPaid) * 100) / 100);
     const error = new Error(
-      `Payment amount (${input.amount}) exceeds remaining balance (${remaining}).`,
+      `Payment amount (${inputAmount}) exceeds remaining balance (${remaining}).`,
     );
     error.name = "VALIDATION_ERROR";
     throw error;
@@ -118,7 +112,7 @@ export async function createPayment(
   return prisma.payment.create({
     data: {
       orderId: order.id,
-      amount: new Prisma.Decimal(input.amount),
+      amount: new Prisma.Decimal(inputAmount),
       method: input.method,
       reference: input.reference?.trim() || null,
       paymentDate: input.paymentDate ? new Date(input.paymentDate) : new Date(),
@@ -149,20 +143,21 @@ export async function updatePayment(
     throw error;
   }
 
-  const orderTotal = Number(order.totalAmount);
-  const otherPaymentsPaid = order.payments
-    .filter((p) => p.id !== paymentId)
-    .reduce((sum, p) => sum + Number(p.amount), 0);
+  const orderTotal = Math.round(Number(order.totalAmount) * 100) / 100;
+  const otherPaymentsPaid = Math.round(
+    order.payments
+      .filter((p) => p.id !== paymentId)
+      .reduce((sum, p) => sum + Number(p.amount), 0) * 100
+  ) / 100;
 
-  const targetAmount =
-    input.amount !== undefined
-      ? input.amount
-      : Number(existingPayment.amount);
+  const targetAmount = Math.round(
+    (input.amount !== undefined ? input.amount : Number(existingPayment.amount)) * 100
+  ) / 100;
 
-  const newTotalPaid = otherPaymentsPaid + targetAmount;
+  const newTotalPaid = Math.round((otherPaymentsPaid + targetAmount) * 100) / 100;
 
   if (newTotalPaid > orderTotal) {
-    const remaining = Math.max(0, orderTotal - otherPaymentsPaid);
+    const remaining = Math.max(0, Math.round((orderTotal - otherPaymentsPaid) * 100) / 100);
     const error = new Error(
       `Payment amount (${targetAmount}) exceeds remaining balance (${remaining}).`,
     );
@@ -176,7 +171,7 @@ export async function updatePayment(
     },
     data: {
       ...(input.amount !== undefined && {
-        amount: new Prisma.Decimal(input.amount),
+        amount: new Prisma.Decimal(targetAmount),
       }),
       ...(input.method !== undefined && { method: input.method }),
       ...(input.reference !== undefined && {
