@@ -43,10 +43,14 @@ export const createOrderSchema = z
     priority: orderPriorityEnum.default("MEDIUM"),
     status: orderStatusEnum.default("NEW"),
     expectedDate: z
-      .string()
-      .datetime({ message: "Expected delivery date must be a valid ISO date." })
-      .nullable()
-      .optional(),
+      .preprocess(
+        (val) => (val === "" ? null : val),
+        z
+          .string()
+          .datetime({ message: "Expected delivery date must be a valid ISO date." })
+          .nullable()
+          .optional(),
+      ),
     notes: z
       .string()
       .trim()
@@ -89,10 +93,14 @@ export const updateOrderSchema = z
     priority: orderPriorityEnum.optional(),
     status: orderStatusEnum.optional(),
     expectedDate: z
-      .string()
-      .datetime({ message: "Expected delivery date must be a valid ISO date." })
-      .nullable()
-      .optional(),
+      .preprocess(
+        (val) => (val === "" ? null : val),
+        z
+          .string()
+          .datetime({ message: "Expected delivery date must be a valid ISO date." })
+          .nullable()
+          .optional(),
+      ),
     notes: z
       .string()
       .trim()
