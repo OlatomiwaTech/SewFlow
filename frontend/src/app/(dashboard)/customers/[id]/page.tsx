@@ -103,6 +103,9 @@ export default function CustomerDetailPage() {
       await apiClient.createMeasurement(customerId, data);
       await fetchMeasurements();
       setMeasurementMode("list");
+    } catch (error) {
+      console.error("Failed to create measurement:", error);
+      throw error;
     } finally {
       setIsSavingMeasurement(false);
     }
@@ -116,6 +119,9 @@ export default function CustomerDetailPage() {
       await fetchMeasurements();
       setSelectedMeasurement(null);
       setMeasurementMode("list");
+    } catch (error) {
+      console.error("Failed to update measurement:", error);
+      throw error;
     } finally {
       setIsSavingMeasurement(false);
     }
@@ -132,6 +138,9 @@ export default function CustomerDetailPage() {
       await apiClient.createOrder(customerId, data as CreateOrderInput);
       await fetchOrders();
       setOrderMode("list");
+    } catch (error) {
+      console.error("Failed to create order:", error);
+      throw error;
     } finally {
       setIsSavingOrder(false);
     }
@@ -145,6 +154,9 @@ export default function CustomerDetailPage() {
       await fetchOrders();
       setSelectedOrder(null);
       setOrderMode("list");
+    } catch (error) {
+      console.error("Failed to update order:", error);
+      throw error;
     } finally {
       setIsSavingOrder(false);
     }
