@@ -178,9 +178,11 @@ model Order {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  payments Payment[]
-  history  OrderHistory[]
+  customer       Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  payments       Payment[]
+  history        OrderHistory[]
+  materials      OrderMaterial[]
+  stockMovements StockMovement[]
 
   @@index([customerId])
   @@index([customerId, status])
@@ -236,15 +238,42 @@ model Material {
 
   business       Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
   stockMovements StockMovement[]
+  orderMaterials OrderMaterial[]
 
   @@index([businessId])
   @@index([businessId, category])
   @@index([businessId, isActive])
 }
 
+model OrderMaterial {
+  id              String       @id @default(uuid())
+  orderId         String
+  materialId      String
+
+  plannedQuantity Decimal      @default(0) @db.Decimal(12, 2)
+  actualQuantity  Decimal      @default(0) @db.Decimal(12, 2)
+
+  unit            MaterialUnit
+  unitCost        Decimal      @db.Decimal(12, 2)
+  totalCost       Decimal      @default(0) @db.Decimal(12, 2)
+
+  notes           String?
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([materialId])
+  @@index([orderId, materialId])
+}
+
 model StockMovement {
   id             String       @id @default(uuid())
   materialId     String
+  orderId        String?
   type           MovementType
   quantityChange Decimal      @db.Decimal(12, 2)
   quantityBefore Decimal      @db.Decimal(12, 2)
@@ -254,7 +283,9 @@ model StockMovement {
   createdAt      DateTime     @default(now())
 
   material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  order    Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   @@index([materialId])
+  @@index([orderId])
   @@index([materialId, createdAt])
 }

@@ -7,6 +7,7 @@ import { OrderStatusBadge } from "./order-status-badge";
 import { PaymentStatusBadge } from "../payments/payment-status-badge";
 import { PaymentList } from "../payments/payment-list";
 import { PaymentForm } from "../payments/payment-form";
+import { OrderMaterialsSection } from "./order-materials-section";
 import { apiClient } from "@/lib/api";
 import { Calendar, DollarSign, Shirt, FileText, Edit, Trash2, Plus, CreditCard } from "lucide-react";
 
@@ -196,6 +197,9 @@ export function OrderDetail({
           </div>
         </div>
       </div>
+
+      {/* Materials & Inventory Section */}
+      <OrderMaterialsSection customerId={order.customerId} orderId={order.id} />
 
       {/* Payment History Section */}
       <div className="rounded-xl border p-5 bg-card/30 space-y-4">

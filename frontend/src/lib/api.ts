@@ -16,10 +16,14 @@ import type {
   UpdateMeasurementInput,
 } from "@/types/measurement";
 import type {
+  AddPlannedMaterialInput,
   CreateOrderInput,
   Order,
+  OrderMaterial,
   ProductionMetrics,
+  RecordActualConsumptionInput,
   UpdateOrderInput,
+  UpdateOrderMaterialInput,
 } from "@/types/order";
 import type {
   CreatePaymentInput,
@@ -373,6 +377,77 @@ class ApiClient {
     await this.request<void>(`/customers/${customerId}/orders/${orderId}`, {
       method: "DELETE",
     });
+  }
+
+  // Order Material API endpoints
+  async listOrderMaterials(
+    customerId: string,
+    orderId: string,
+  ): Promise<OrderMaterial[]> {
+    const res = await this.request<{ success: boolean; data: OrderMaterial[] }>(
+      `/customers/${customerId}/orders/${orderId}/materials`,
+    );
+    return res.data;
+  }
+
+  async addPlannedMaterial(
+    customerId: string,
+    orderId: string,
+    input: AddPlannedMaterialInput,
+  ): Promise<OrderMaterial> {
+    const res = await this.request<{ success: boolean; data: OrderMaterial }>(
+      `/customers/${customerId}/orders/${orderId}/materials`,
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    );
+    return res.data;
+  }
+
+  async updateOrderMaterial(
+    customerId: string,
+    orderId: string,
+    orderMaterialId: string,
+    input: UpdateOrderMaterialInput,
+  ): Promise<OrderMaterial> {
+    const res = await this.request<{ success: boolean; data: OrderMaterial }>(
+      `/customers/${customerId}/orders/${orderId}/materials/${orderMaterialId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      },
+    );
+    return res.data;
+  }
+
+  async recordActualConsumption(
+    customerId: string,
+    orderId: string,
+    orderMaterialId: string,
+    input: RecordActualConsumptionInput,
+  ): Promise<OrderMaterial> {
+    const res = await this.request<{ success: boolean; data: OrderMaterial }>(
+      `/customers/${customerId}/orders/${orderId}/materials/${orderMaterialId}/consume`,
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    );
+    return res.data;
+  }
+
+  async deleteOrderMaterial(
+    customerId: string,
+    orderId: string,
+    orderMaterialId: string,
+  ): Promise<void> {
+    await this.request<void>(
+      `/customers/${customerId}/orders/${orderId}/materials/${orderMaterialId}`,
+      {
+        method: "DELETE",
+      },
+    );
   }
 
   // Payment API endpoints
