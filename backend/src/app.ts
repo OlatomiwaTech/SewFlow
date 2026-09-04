@@ -38,7 +38,7 @@ app.use(
         return callback(null, true);
       }
 
-      return callback(new Error(`CORS policy violation: Origin ${origin} not allowed.`), false);
+      return callback(null, false);
     },
     credentials: true,
   }),

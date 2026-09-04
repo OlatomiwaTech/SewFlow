@@ -34,7 +34,9 @@ import type {
   UpdateMaterialInput,
 } from "@/types/inventory";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== "undefined" ? "/api" : "http://localhost:4000/api");
 
 function formatUrl(baseUrl: string, path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {
@@ -44,7 +46,7 @@ function formatUrl(baseUrl: string, path: string): string {
   const cleanBase = baseUrl.replace(/\/+$/, "");
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
 
-  if (cleanBase.endsWith("/api")) {
+  if (cleanBase === "/api" || cleanBase.endsWith("/api")) {
     if (cleanPath === "/api") return cleanBase;
     if (cleanPath.startsWith("/api/")) return `${cleanBase}${cleanPath.slice(4)}`;
     return `${cleanBase}${cleanPath}`;
@@ -54,7 +56,7 @@ function formatUrl(baseUrl: string, path: string): string {
     return `${cleanBase}${cleanPath}`;
   }
 
-  return `${cleanBase}/api${cleanPath}`;
+  return cleanBase ? `${cleanBase}/api${cleanPath}` : `/api${cleanPath}`;
 }
 
 // Utility function for general API requests
