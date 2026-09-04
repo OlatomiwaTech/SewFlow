@@ -29,19 +29,20 @@ export function formatOrderSummary(
     include: { payments: true; customer: true; history: true };
   }>,
 ) {
-  const totalAmount = Number(order.totalAmount);
+  const totalAmount = Math.round(Number(order.totalAmount) * 100) / 100;
 
-  let totalPaid = order.payments ? order.payments.reduce((sum, p) => sum + Number(p.amount), 0) : 0;
-
-  // Preserve legacy depositAmount if no Payment records exist
-  if ((!order.payments || order.payments.length === 0) && Number(order.depositAmount) > 0) {
-    totalPaid = Number(order.depositAmount);
+  let rawPaid = 0;
+  if (order.payments && Array.isArray(order.payments) && order.payments.length > 0) {
+    rawPaid = order.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  } else {
+    rawPaid = Number(order.depositAmount || 0);
   }
 
-  const balanceDue = Math.max(0, totalAmount - totalPaid);
+  const totalPaid = Math.round(rawPaid * 100) / 100;
+  const balanceDue = Math.max(0, Math.round((totalAmount - totalPaid) * 100) / 100);
 
   let paymentStatus: "UNPAID" | "PARTIALLY_PAID" | "PAID";
-  if (totalPaid === 0) {
+  if (totalPaid <= 0) {
     paymentStatus = "UNPAID";
   } else if (totalPaid < totalAmount) {
     paymentStatus = "PARTIALLY_PAID";
@@ -252,14 +253,13 @@ export async function updateOrder(
     throw error;
   }
 
-  const effectiveTotal =
-    input.totalAmount !== undefined
-      ? input.totalAmount
-      : Number(existing.totalAmount);
-  const existingPaid = existing.payments.reduce(
-    (sum, p) => sum + Number(p.amount),
-    0,
-  );
+  const effectiveTotal = Math.round(
+    (input.totalAmount !== undefined ? input.totalAmount : Number(existing.totalAmount)) * 100
+  ) / 100;
+
+  const existingPaid = Math.round(
+    existing.payments.reduce((sum, p) => sum + Number(p.amount), 0) * 100
+  ) / 100;
 
   if (existingPaid > effectiveTotal) {
     const error = new Error("Total amount cannot be less than total payments already recorded.");
@@ -376,8 +376,8 @@ export async function getProductionMetrics(businessId: string) {
   let activeOrders = 0;
   let completedOrders = 0;
   let urgentOrders = 0;
-  let totalRevenue = 0;
-  let totalCollected = 0;
+  let rawRevenue = 0;
+  let rawCollected = 0;
 
   const statusCounts: Record<string, number> = {
     NEW: 0,
@@ -398,8 +398,8 @@ export async function getProductionMetrics(businessId: string) {
     const total = Number(order.totalAmount);
     const paid = order.payments.reduce((s, p) => s + Number(p.amount), 0);
 
-    totalRevenue += total;
-    totalCollected += paid;
+    rawRevenue += total;
+    rawCollected += paid;
 
     if (order.status === OrderStatus.DELIVERED) {
       completedOrders += 1;
@@ -411,7 +411,9 @@ export async function getProductionMetrics(businessId: string) {
     }
   });
 
-  const balanceOutstanding = Math.max(0, totalRevenue - totalCollected);
+  const totalRevenue = Math.round(rawRevenue * 100) / 100;
+  const totalCollected = Math.round(rawCollected * 100) / 100;
+  const balanceOutstanding = Math.max(0, Math.round((totalRevenue - totalCollected) * 100) / 100);
 
   return {
     totalOrders,

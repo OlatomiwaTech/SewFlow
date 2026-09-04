@@ -10,7 +10,9 @@ import {
 
 function requireBusinessId(req: Request) {
   if (!req.user?.businessId) {
-    throw new Error("Authenticated business context is missing.");
+    const error = new Error("Authenticated business context is missing.");
+    error.name = "UNAUTHORIZED";
+    throw error;
   }
 
   return req.user.businessId;

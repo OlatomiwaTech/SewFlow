@@ -27,12 +27,12 @@ export function formatMaterialSummary(
     include: { stockMovements: true };
   }>,
 ) {
-  const quantity = Number(material.currentQuantity);
-  const minStock = Number(material.minimumStockLevel);
-  const cost = Number(material.costPerUnit);
+  const quantity = Math.round(Number(material.currentQuantity) * 100) / 100;
+  const minStock = Math.round(Number(material.minimumStockLevel) * 100) / 100;
+  const cost = Math.round(Number(material.costPerUnit) * 100) / 100;
 
   const stockStatus = getStockStatus(quantity, minStock);
-  const estimatedValue = Math.max(0, quantity * cost);
+  const estimatedValue = Math.max(0, Math.round(quantity * cost * 100) / 100);
 
   return {
     ...material,
@@ -44,9 +44,9 @@ export function formatMaterialSummary(
     stockMovements: material.stockMovements
       ? material.stockMovements.map((m) => ({
           ...m,
-          quantityChange: Number(m.quantityChange),
-          quantityBefore: Number(m.quantityBefore),
-          quantityAfter: Number(m.quantityAfter),
+          quantityChange: Math.round(Number(m.quantityChange) * 100) / 100,
+          quantityBefore: Math.round(Number(m.quantityBefore) * 100) / 100,
+          quantityAfter: Math.round(Number(m.quantityAfter) * 100) / 100,
         }))
       : [],
   };
@@ -137,7 +137,7 @@ export async function createMaterial(
     }
   }
 
-  const initialQty = input.initialQuantity ?? 0;
+  const initialQty = Math.round((input.initialQuantity ?? 0) * 100) / 100;
 
   const result = await prisma.$transaction(async (tx) => {
     const material = await tx.material.create({
@@ -260,9 +260,9 @@ export async function adjustStock(
       throw error;
     }
 
-    const currentQty = Number(material.currentQuantity);
-    const change = input.quantityChange;
-    const newQty = currentQty + change;
+    const currentQty = Math.round(Number(material.currentQuantity) * 100) / 100;
+    const change = Math.round(input.quantityChange * 100) / 100;
+    const newQty = Math.round((currentQty + change) * 100) / 100;
 
     if (newQty < 0) {
       const error = new Error(
@@ -272,7 +272,7 @@ export async function adjustStock(
       throw error;
     }
 
-    const updatedMaterial = await tx.material.update({
+    await tx.material.update({
       where: { id: materialId },
       data: {
         currentQuantity: new Prisma.Decimal(newQty),
@@ -339,7 +339,7 @@ export async function getInventorySummary(businessId: string) {
   let activeMaterials = 0;
   let lowStockMaterials = 0;
   let outOfStockMaterials = 0;
-  let totalInventoryValue = 0;
+  let rawValue = 0;
 
   const categoryCounts: Record<string, number> = {
     FABRIC: 0,
@@ -358,11 +358,11 @@ export async function getInventorySummary(businessId: string) {
     if (m.isActive) {
       activeMaterials += 1;
 
-      const qty = Number(m.currentQuantity);
-      const minStock = Number(m.minimumStockLevel);
-      const cost = Number(m.costPerUnit);
+      const qty = Math.round(Number(m.currentQuantity) * 100) / 100;
+      const minStock = Math.round(Number(m.minimumStockLevel) * 100) / 100;
+      const cost = Math.round(Number(m.costPerUnit) * 100) / 100;
 
-      totalInventoryValue += qty * cost;
+      rawValue += qty * cost;
 
       if (qty <= 0) {
         outOfStockMaterials += 1;
@@ -371,6 +371,8 @@ export async function getInventorySummary(businessId: string) {
       }
     }
   });
+
+  const totalInventoryValue = Math.round(rawValue * 100) / 100;
 
   return {
     totalMaterials,
