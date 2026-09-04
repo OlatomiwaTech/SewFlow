@@ -37,15 +37,24 @@ import type {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
 function formatUrl(baseUrl: string, path: string): string {
-  const cleanBase = baseUrl.replace(/\/$/, "");
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+
+  const cleanBase = baseUrl.replace(/\/+$/, "");
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  if (cleanBase.endsWith("/api") && cleanPath.startsWith("/api/")) {
-    return `${cleanBase}${cleanPath.slice(4)}`;
+
+  if (cleanBase.endsWith("/api")) {
+    if (cleanPath === "/api") return cleanBase;
+    if (cleanPath.startsWith("/api/")) return `${cleanBase}${cleanPath.slice(4)}`;
+    return `${cleanBase}${cleanPath}`;
   }
-  if (!cleanBase.endsWith("/api") && !cleanPath.startsWith("/api/")) {
-    return `${cleanBase}/api${cleanPath}`;
+
+  if (cleanPath === "/api" || cleanPath.startsWith("/api/")) {
+    return `${cleanBase}${cleanPath}`;
   }
-  return `${cleanBase}${cleanPath}`;
+
+  return `${cleanBase}/api${cleanPath}`;
 }
 
 // Utility function for general API requests
@@ -65,10 +74,27 @@ export async function api<T>(
     headers.Authorization = `Bearer ${authToken}`;
   }
   
-  const response = await fetch(url, {
-    ...fetchOptions,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...fetchOptions,
+      headers,
+    });
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      (err.message.includes("Failed to fetch") ||
+        err.message.includes("fetch failed") ||
+        err.name === "TypeError")
+    ) {
+      throw new Error(
+        "Failed to fetch: Unable to connect to the server. Please check your network connection or API URL configuration."
+      );
+    }
+    throw err instanceof Error
+      ? err
+      : new Error("Failed to fetch: Unable to connect to the server.");
+  }
   
   if (response.status === 204) {
     return null as T;
@@ -76,7 +102,11 @@ export async function api<T>(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.message || "An error occurred");
+    throw new Error(
+      errorData.error ||
+        errorData.message ||
+        `Server error (${response.status}${response.statusText ? `: ${response.statusText}` : ""})`
+    );
   }
   
   return response.json() as Promise<T>;
@@ -106,10 +136,27 @@ class ApiClient {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers,
+      });
+    } catch (err) {
+      if (
+        err instanceof Error &&
+        (err.message.includes("Failed to fetch") ||
+          err.message.includes("fetch failed") ||
+          err.name === "TypeError")
+      ) {
+        throw new Error(
+          "Failed to fetch: Unable to connect to the server. Please check your network connection or API URL configuration."
+        );
+      }
+      throw err instanceof Error
+        ? err
+        : new Error("Failed to fetch: Unable to connect to the server.");
+    }
 
     if (response.status === 204) {
       return null as T;
@@ -117,7 +164,11 @@ class ApiClient {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || errorData.message || "An error occurred");
+      throw new Error(
+        errorData.error ||
+          errorData.message ||
+          `Server error (${response.status}${response.statusText ? `: ${response.statusText}` : ""})`
+      );
     }
 
     return response.json();
