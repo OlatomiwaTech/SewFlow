@@ -11,13 +11,35 @@ import measurementRoutes from "./routes/measurement.routes.js";
 import { customerOrderRouter, globalOrderRouter } from "./routes/order.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
+import { env } from "./config/env.js";
 
 const app = express();
+
+const allowedOrigins = Array.from(
+  new Set(
+    [
+      env.FRONTEND_URL,
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+    ].flatMap((url) => (url ? url.split(",").map((s) => s.trim().replace(/\/+$/, "")) : []))
+  )
+);
 
 app.use(helmet());
 app.use(
   cors({
-    origin: true,
+    origin: (origin, callback) => {
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      const cleanOrigin = origin.replace(/\/+$/, "");
+      if (allowedOrigins.includes(cleanOrigin) || process.env.NODE_ENV !== "production") {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS policy violation: Origin ${origin} not allowed.`), false);
+    },
     credentials: true,
   }),
 );
