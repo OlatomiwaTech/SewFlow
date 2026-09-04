@@ -1,5 +1,6 @@
 import type { Customer } from "./customer";
 import type { Payment, PaymentStatus } from "./payment";
+import type { Material } from "./inventory";
 
 export type OrderStatus =
   | "NEW"
@@ -24,6 +25,21 @@ export interface OrderHistory {
   createdAt: string;
 }
 
+export interface OrderMaterial {
+  id: string;
+  orderId: string;
+  materialId: string;
+  plannedQuantity: number;
+  actualQuantity: number;
+  unit: string;
+  unitCost: number;
+  totalCost: number;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  material?: Material;
+}
+
 export interface Order {
   id: string;
   customerId: string;
@@ -46,6 +62,7 @@ export interface Order {
   customer?: Customer;
   payments?: Payment[];
   history?: OrderHistory[];
+  materials?: OrderMaterial[];
 }
 
 export interface CreateOrderInput {
@@ -70,6 +87,22 @@ export interface UpdateOrderInput {
   status?: OrderStatus;
   expectedDate?: string | null;
   notes?: string | null;
+}
+
+export interface AddPlannedMaterialInput {
+  materialId: string;
+  plannedQuantity: number;
+  notes?: string;
+}
+
+export interface UpdateOrderMaterialInput {
+  plannedQuantity?: number;
+  notes?: string;
+}
+
+export interface RecordActualConsumptionInput {
+  actualQuantity: number;
+  notes?: string;
 }
 
 export interface OrderListResponse {
