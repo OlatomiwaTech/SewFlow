@@ -5,9 +5,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 import {
   addPlannedMaterial,
-  deleteOrderMaterial,
   recordActualConsumption,
-  updateOrderMaterial,
 } from "../services/order-material.service.js";
 import { addPlannedMaterialSchema, recordActualConsumptionSchema } from "../validators/order-material.validator.js";
 
@@ -160,6 +158,14 @@ describe("Order Material Usage & Inventory Integration Audit", () => {
           unit: "YARD",
           currentQuantity: new Prisma.Decimal(10),
         }),
+        updateMany: async (args: any) => {
+          const reqQty = Number(args.where.currentQuantity.gte);
+          if (10 >= reqQty) {
+            updatedStock = 10 - reqQty;
+            return { count: 1 };
+          }
+          return { count: 0 };
+        },
         update: async (args: any) => {
           updatedStock = args.data.currentQuantity;
         },
@@ -207,6 +213,13 @@ describe("Order Material Usage & Inventory Integration Audit", () => {
           unit: "YARD",
           currentQuantity: new Prisma.Decimal(2), // Only 2 yards in stock
         }),
+        updateMany: async (args: any) => {
+          const reqQty = Number(args.where.currentQuantity.gte);
+          if (2 >= reqQty) {
+            return { count: 1 };
+          }
+          return { count: 0 }; // Fails because 2 < 5
+        },
       },
     };
 

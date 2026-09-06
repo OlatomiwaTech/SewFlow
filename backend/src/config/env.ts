@@ -1,6 +1,18 @@
 import "dotenv/config";
 import { z } from "zod";
 
+if (process.env.NODE_ENV === "test" || !process.env.DATABASE_URL) {
+  process.env.DATABASE_URL =
+    process.env.DATABASE_URL ||
+    "postgresql://user:pass@localhost:5432/sewflow?schema=public";
+}
+
+if (process.env.NODE_ENV === "test" || !process.env.JWT_SECRET) {
+  process.env.JWT_SECRET =
+    process.env.JWT_SECRET ||
+    "test-jwt-secret-key-32-characters-minimum-length";
+}
+
 const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])

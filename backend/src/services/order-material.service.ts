@@ -218,22 +218,56 @@ export async function recordActualConsumption(
     const newActual = Math.round(input.actualQuantity * 100) / 100;
     const delta = Math.round((newActual - oldActual) * 100) / 100;
 
-    if (delta !== 0) {
+    if (delta > 0) {
       const currentQty = Math.round(Number(material.currentQuantity) * 100) / 100;
       const newQty = Math.round((currentQty - delta) * 100) / 100;
 
-      if (newQty < 0) {
+      const updatedCount = await tx.material.updateMany({
+        where: {
+          id: material.id,
+          businessId,
+          currentQuantity: {
+            gte: new Prisma.Decimal(delta),
+          },
+        },
+        data: {
+          currentQuantity: {
+            decrement: new Prisma.Decimal(delta),
+          },
+        },
+      });
+
+      if (updatedCount.count === 0) {
         const error = new Error(
-          `Insufficient stock for material '${material.name}'. Current stock is ${currentQty} ${material.unit}, requested additional consumption is ${delta} ${material.unit}.`,
+          `Insufficient stock for material '${material.name}'. Current stock is less than requested additional consumption of ${delta} ${material.unit}.`,
         );
         error.name = "VALIDATION_ERROR";
         throw error;
       }
 
+      await tx.stockMovement.create({
+        data: {
+          materialId: material.id,
+          orderId,
+          type: MovementType.USAGE,
+          quantityChange: new Prisma.Decimal(-delta),
+          quantityBefore: new Prisma.Decimal(currentQty),
+          quantityAfter: new Prisma.Decimal(newQty),
+          notes: input.notes?.trim() || `Material consumption update for Order #${orderId.slice(0, 8)}`,
+          createdById: userId || null,
+        },
+      });
+    } else if (delta < 0) {
+      const absDelta = Math.abs(delta);
+      const currentQty = Math.round(Number(material.currentQuantity) * 100) / 100;
+      const newQty = Math.round((currentQty + absDelta) * 100) / 100;
+
       await tx.material.update({
         where: { id: material.id },
         data: {
-          currentQuantity: new Prisma.Decimal(newQty),
+          currentQuantity: {
+            increment: new Prisma.Decimal(absDelta),
+          },
         },
       });
 
@@ -241,11 +275,11 @@ export async function recordActualConsumption(
         data: {
           materialId: material.id,
           orderId,
-          type: delta > 0 ? MovementType.USAGE : MovementType.RETURN,
-          quantityChange: new Prisma.Decimal(-delta),
+          type: MovementType.RETURN,
+          quantityChange: new Prisma.Decimal(absDelta),
           quantityBefore: new Prisma.Decimal(currentQty),
           quantityAfter: new Prisma.Decimal(newQty),
-          notes: input.notes?.trim() || `Material consumption update for Order #${orderId.slice(0, 8)}`,
+          notes: input.notes?.trim() || `Material consumption reduction for Order #${orderId.slice(0, 8)}`,
           createdById: userId || null,
         },
       });
@@ -309,7 +343,7 @@ export async function deleteOrderMaterial(
 
         await tx.material.update({
           where: { id: material.id },
-          data: { currentQuantity: new Prisma.Decimal(restoredQty) },
+          data: { currentQuantity: { increment: new Prisma.Decimal(actualQty) } },
         });
 
         await tx.stockMovement.create({
