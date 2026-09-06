@@ -201,12 +201,30 @@ export async function recordActualConsumption(
       throw error;
     }
 
-    const material = await tx.material.findFirst({
-      where: {
-        id: existing.materialId,
-        businessId,
-      },
-    });
+    // Row-level lock on material record to ensure strictly sequential execution & continuous audit trail
+    let material: any = null;
+    if (typeof (tx as any).$queryRaw === "function") {
+      try {
+        const rows = await tx.$queryRaw<any[]>`
+          SELECT id, "businessId", name, unit, "currentQuantity"
+          FROM "Material"
+          WHERE id = ${existing.materialId} AND "businessId" = ${businessId}
+          FOR UPDATE
+        `;
+        material = rows && rows.length > 0 ? rows[0] : null;
+      } catch {
+        material = null;
+      }
+    }
+
+    if (!material) {
+      material = await tx.material.findFirst({
+        where: {
+          id: existing.materialId,
+          businessId,
+        },
+      });
+    }
 
     if (!material) {
       const error = new Error("Material not found.");
@@ -222,28 +240,20 @@ export async function recordActualConsumption(
       const currentQty = Math.round(Number(material.currentQuantity) * 100) / 100;
       const newQty = Math.round((currentQty - delta) * 100) / 100;
 
-      const updatedCount = await tx.material.updateMany({
-        where: {
-          id: material.id,
-          businessId,
-          currentQuantity: {
-            gte: new Prisma.Decimal(delta),
-          },
-        },
-        data: {
-          currentQuantity: {
-            decrement: new Prisma.Decimal(delta),
-          },
-        },
-      });
-
-      if (updatedCount.count === 0) {
+      if (newQty < 0) {
         const error = new Error(
-          `Insufficient stock for material '${material.name}'. Current stock is less than requested additional consumption of ${delta} ${material.unit}.`,
+          `Insufficient stock for material '${material.name}'. Current stock is ${currentQty} ${material.unit}, requested additional consumption is ${delta} ${material.unit}.`,
         );
         error.name = "VALIDATION_ERROR";
         throw error;
       }
+
+      await tx.material.update({
+        where: { id: material.id },
+        data: {
+          currentQuantity: new Prisma.Decimal(newQty),
+        },
+      });
 
       await tx.stockMovement.create({
         data: {
@@ -265,9 +275,7 @@ export async function recordActualConsumption(
       await tx.material.update({
         where: { id: material.id },
         data: {
-          currentQuantity: {
-            increment: new Prisma.Decimal(absDelta),
-          },
+          currentQuantity: new Prisma.Decimal(newQty),
         },
       });
 
@@ -343,7 +351,7 @@ export async function deleteOrderMaterial(
 
         await tx.material.update({
           where: { id: material.id },
-          data: { currentQuantity: { increment: new Prisma.Decimal(actualQty) } },
+          data: { currentQuantity: new Prisma.Decimal(restoredQty) },
         });
 
         await tx.stockMovement.create({
