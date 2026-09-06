@@ -263,7 +263,7 @@ model OrderMaterial {
   updatedAt       DateTime     @updatedAt
 
   order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  material Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
 
   @@index([orderId])
   @@index([materialId])
