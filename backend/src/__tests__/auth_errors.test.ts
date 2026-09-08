@@ -73,6 +73,7 @@ describe("Authentication & Security Error Handling Audit", () => {
     test("authenticates request and populates req.user when Bearer token is valid", () => {
       const token = signAccessToken({
         userId: "user-123",
+        email: "owner@example.com",
         businessId: "biz-456",
         role: "OWNER",
       });

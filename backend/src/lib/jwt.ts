@@ -1,10 +1,12 @@
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
+import type { UserRole } from "../types/express.js";
 
 export interface AuthTokenPayload {
   userId: string;
+  email: string;
   businessId: string;
-  role: string;
+  role: UserRole;
 }
 
 export function signAccessToken(payload: AuthTokenPayload): string {

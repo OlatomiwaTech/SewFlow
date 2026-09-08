@@ -69,6 +69,7 @@ export async function register(input: RegisterInput) {
 
   const token = signAccessToken({
     userId: result.user.id,
+    email: result.user.email,
     businessId: result.business.id,
     role: result.user.role,
   });
@@ -114,6 +115,7 @@ export async function login(input: LoginInput) {
 
   const token = signAccessToken({
     userId: user.id,
+    email: user.email,
     businessId: user.businessId,
     role: user.role,
   });

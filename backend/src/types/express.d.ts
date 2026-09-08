@@ -1,9 +1,17 @@
-import type { AuthenticatedRequest } from "../middleware/auth.middleware.js";
+export type UserRole = "OWNER" | "ADMIN" | "TAILOR" | "STAFF";
+
+export interface AuthenticatedUser {
+  id: string;
+  email: string;
+  businessId: string;
+  role: UserRole;
+}
 
 declare global {
   namespace Express {
     interface Request {
-      user?: AuthenticatedRequest["user"];
+      user?: AuthenticatedUser;
+      tenantId?: string;
     }
   }
 }
