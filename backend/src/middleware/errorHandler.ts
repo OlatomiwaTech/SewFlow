@@ -118,6 +118,15 @@ export function errorHandler(
     return;
   }
 
+  if (err.name === "INSUFFICIENT_STOCK") {
+    res.status(400).json({
+      success: false,
+      error: err.message,
+      code: "INSUFFICIENT_STOCK",
+    });
+    return;
+  }
+
   if (process.env.NODE_ENV === "development") {
     console.error("[Unhandled Error]:", err);
   }

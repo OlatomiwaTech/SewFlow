@@ -1,76 +1,49 @@
 import "dotenv/config";
+import pino from "pino";
 import { z } from "zod";
 
-const isTestEnv =
-  process.env.NODE_ENV === "test" ||
-  process.argv.some((arg) => arg.includes("--test")) ||
-  process.env.npm_lifecycle_event === "test";
+const startupLogger = pino({ level: "error" });
 
-if (isTestEnv) {
-  process.env.NODE_ENV = "test";
-  if (!process.env.DATABASE_URL) {
-    process.env.DATABASE_URL =
-      "postgresql://user:pass@localhost:5432/sewflow?schema=public";
-  }
-  if (!process.env.JWT_SECRET) {
-    process.env.JWT_SECRET =
-      "test-jwt-secret-key-32-characters-minimum-length";
-  }
-}
+const postgresUrl = z.string().refine(
+  (value) => {
+    try {
+      const url = new URL(value);
+      return (url.protocol === "postgresql:" || url.protocol === "postgres:") && Boolean(url.hostname);
+    } catch {
+      return false;
+    }
+  },
+  "DATABASE_URL must be a valid PostgreSQL connection string",
+);
 
-const currentEnv = process.env.NODE_ENV || "development";
+const originUrl = z.string().url().refine(
+  (value) => {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  },
+  "CORS_ORIGIN must contain HTTP(S) origins",
+);
 
 const envSchema = z.object({
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
-
-  PORT: z.coerce.number().int().positive().default(4000),
-
-  DATABASE_URL: z
-    .string()
-    .min(1, "DATABASE_URL is required")
-    .refine(
-      (url) => {
-        if (currentEnv === "production") {
-          return !url.includes("localhost") && !url.includes("127.0.0.1");
-        }
-        return true;
-      },
-      { message: "Production DATABASE_URL must not point to localhost or 127.0.0.1" },
-    ),
-
-  JWT_SECRET: z
-    .string()
-    .min(32, "JWT_SECRET must be at least 32 characters")
-    .refine(
-      (secret) => {
-        if (currentEnv === "production") {
-          return (
-            secret !== "replace-with-a-32-character-secret-key-min" &&
-            secret !== "test-jwt-secret-key-32-characters-minimum-length" &&
-            secret !== "your-secret"
-          );
-        }
-        return true;
-      },
-      { message: "Production JWT_SECRET must not use a development or test fallback key" },
-    ),
-
-  FRONTEND_URL: z
-    .string()
-    .default("http://localhost:3000"),
+  NODE_ENV: z.enum(["development", "test", "production"]),
+  PORT: z.coerce.number().int().min(1).max(65535).default(5000),
+  DATABASE_URL: postgresUrl,
+  JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
+  JWT_EXPIRES_IN: z.string().regex(/^\d+\s*(s|m|h|d|w|y)$/, "JWT_EXPIRES_IN must use a duration such as 15m or 1d"),
+  CORS_ORIGIN: z.preprocess(
+    (value) => typeof value === "string" ? value.split(",").map((origin) => origin.trim()).filter(Boolean) : value,
+    z.array(originUrl).min(1, "CORS_ORIGIN must contain at least one origin"),
+  ),
+  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]),
 });
 
 const result = envSchema.safeParse(process.env);
 
 if (!result.success) {
-  console.error("Invalid environment configuration:");
-
-  for (const issue of result.error.issues) {
-    console.error(`- ${issue.path.join(".")}: ${issue.message}`);
-  }
-
+  startupLogger.error(
+    { issues: result.error.issues.map(({ path, message }) => ({ path, message })) },
+    "Invalid environment configuration",
+  );
   process.exit(1);
 }
 

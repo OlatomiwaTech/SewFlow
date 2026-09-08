@@ -117,6 +117,7 @@ export async function addPlannedMaterial(
 
   const created = await prisma.orderMaterial.create({
     data: {
+      businessId,
       orderId,
       materialId: material.id,
       plannedQuantity: new Prisma.Decimal(plannedQty),
@@ -244,7 +245,7 @@ export async function recordActualConsumption(
         const error = new Error(
           `Insufficient stock for material '${material.name}'. Current stock is ${currentQty} ${material.unit}, requested additional consumption is ${delta} ${material.unit}.`,
         );
-        error.name = "VALIDATION_ERROR";
+        error.name = "INSUFFICIENT_STOCK";
         throw error;
       }
 
@@ -257,6 +258,7 @@ export async function recordActualConsumption(
 
       await tx.stockMovement.create({
         data: {
+          businessId,
           materialId: material.id,
           orderId,
           type: MovementType.USAGE,
@@ -281,6 +283,7 @@ export async function recordActualConsumption(
 
       await tx.stockMovement.create({
         data: {
+          businessId,
           materialId: material.id,
           orderId,
           type: MovementType.RETURN,
@@ -356,6 +359,8 @@ export async function deleteOrderMaterial(
 
         await tx.stockMovement.create({
           data: {
+            businessId,
+            businessId,
             materialId: material.id,
             orderId,
             type: MovementType.RETURN,
