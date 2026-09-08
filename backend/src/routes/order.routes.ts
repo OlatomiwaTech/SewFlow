@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createOrder,
+  createGlobalOrder,
   deleteOrder,
   getOrder,
   getProductionMetrics,
@@ -15,6 +16,7 @@ import {
   orderParamsSchema,
   orderQuerySchema,
   updateOrderSchema,
+  createGlobalOrderSchema,
 } from "../validators/order.validator.js";
 import { customerParamsSchema } from "../validators/measurement.validator.js";
 
@@ -31,6 +33,7 @@ customerOrderRouter.delete("/:customerId/orders/:orderId", validateRequest({ par
 export const globalOrderRouter = Router();
 globalOrderRouter.use(requireAuth);
 globalOrderRouter.get("/metrics", getProductionMetrics);
+globalOrderRouter.post("/", validateRequest({ body: createGlobalOrderSchema }), createGlobalOrder);
 globalOrderRouter.get("/", validateRequest({ query: orderQuerySchema }), listAllOrders);
 
 export default customerOrderRouter;

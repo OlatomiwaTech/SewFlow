@@ -3,6 +3,7 @@ import * as orderService from "../services/order.service.js";
 import { customerParamsSchema } from "../validators/measurement.validator.js";
 import {
   createOrderSchema,
+  createGlobalOrderSchema,
   orderParamsSchema,
   orderQuerySchema,
   updateOrderSchema,
@@ -115,6 +116,25 @@ export async function createOrder(
       customerId,
       input,
     );
+
+    return res.status(201).json({
+      success: true,
+      data: order,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createGlobalOrder(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const businessId = requireBusinessId(req);
+    const input = createGlobalOrderSchema.parse(req.body);
+    const order = await orderService.createOrder(businessId, input.customerId, input);
 
     return res.status(201).json({
       success: true,

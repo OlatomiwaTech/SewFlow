@@ -131,11 +131,16 @@ export const orderQuerySchema = z.object({
   search: z.string().optional(),
 });
 
+export const createGlobalOrderSchema = z.object({
+  customerId: z.string().uuid("Invalid customer ID."),
+}).and(createOrderSchema);
+
 export const orderParamsSchema = z.object({
   customerId: z.string().uuid("Invalid customer ID format."),
   orderId: z.string().uuid("Invalid order ID format."),
 });
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
+export type CreateGlobalOrderInput = z.infer<typeof createGlobalOrderSchema>;
 export type UpdateOrderInput = z.infer<typeof updateOrderSchema>;
 export type OrderQueryInput = z.infer<typeof orderQuerySchema>;

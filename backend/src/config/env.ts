@@ -24,6 +24,11 @@ const originUrl = z.string().url().refine(
   "CORS_ORIGIN must contain HTTP(S) origins",
 );
 
+const redisUrl = z.string().url().refine(
+  (value) => ["redis:", "rediss:"].includes(new URL(value).protocol),
+  "REDIS_URL must be a redis:// or rediss:// connection string",
+);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]),
   PORT: z.coerce.number().int().min(1).max(65535).default(5000),
@@ -35,6 +40,15 @@ const envSchema = z.object({
     z.array(originUrl).min(1, "CORS_ORIGIN must contain at least one origin"),
   ),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]),
+  REDIS_URL: redisUrl.optional(),
+}).superRefine((values, context) => {
+  if (values.NODE_ENV === "production" && !values.REDIS_URL) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["REDIS_URL"],
+      message: "REDIS_URL is required in production",
+    });
+  }
 });
 
 const result = envSchema.safeParse(process.env);
