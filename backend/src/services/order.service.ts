@@ -1,24 +1,54 @@
+import Decimal from "decimal.js";
 import { OrderStatus, Prisma } from "@prisma/client";
 import prisma from "../lib/prisma.js";
+import { AppError } from "../middleware/errorHandler.js";
 import type {
   CreateOrderInput,
   OrderQueryInput,
   UpdateOrderInput,
 } from "../validators/order.validator.js";
 
+const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  NEW: [OrderStatus.MEASURED, OrderStatus.CANCELLED],
+  MEASURED: [OrderStatus.CUTTING, OrderStatus.CANCELLED],
+  CUTTING: [OrderStatus.SEWING, OrderStatus.CANCELLED],
+  SEWING: [OrderStatus.FITTING, OrderStatus.CANCELLED],
+  FITTING: [OrderStatus.READY, OrderStatus.CANCELLED],
+  READY: [OrderStatus.DELIVERED, OrderStatus.CANCELLED],
+  DELIVERED: [],
+  CANCELLED: [],
+  PENDING: [OrderStatus.MEASURED, OrderStatus.CUTTING, OrderStatus.CANCELLED],
+  IN_PROGRESS: [OrderStatus.READY, OrderStatus.CANCELLED],
+};
+
+const toDecimal = (value: number | string | Prisma.Decimal): Decimal =>
+  new Decimal(value.toString());
+
+function validateStatusTransition(currentStatus: OrderStatus, nextStatus: OrderStatus): void {
+  const allowed = ALLOWED_TRANSITIONS[currentStatus] ?? [];
+
+  if (!allowed.includes(nextStatus)) {
+    throw new AppError(
+      `Invalid status transition from ${currentStatus} to ${nextStatus}.`,
+      400,
+      true,
+      "INVALID_STATUS_TRANSITION",
+    );
+  }
+}
+
 async function verifyCustomerOwnership(businessId: string, customerId: string) {
   const customer = await prisma.customer.findFirst({
     where: {
       id: customerId,
       businessId,
+      deletedAt: null,
     },
     select: { id: true },
   });
 
   if (!customer) {
-    const error = new Error("Customer not found.");
-    error.name = "NOT_FOUND";
-    throw error;
+    throw new AppError("Customer not found.", 404, true, "NOT_FOUND");
   }
 
   return customer;
@@ -29,17 +59,14 @@ export function formatOrderSummary(
     include: { payments: true; customer: true; history: true };
   }>,
 ) {
-  const totalAmount = Math.round(Number(order.totalAmount) * 100) / 100;
+  const totalAmount = Number(toDecimal(order.totalAmount).toFixed(2));
 
-  let rawPaid = 0;
-  if (order.payments && Array.isArray(order.payments) && order.payments.length > 0) {
-    rawPaid = order.payments.reduce((sum, p) => sum + Number(p.amount), 0);
-  } else {
-    rawPaid = Number(order.depositAmount || 0);
-  }
+  const rawPaid = order.payments && Array.isArray(order.payments) && order.payments.length > 0
+    ? order.payments.reduce((sum, payment) => sum + Number(toDecimal(payment.amount).toFixed(2)), 0)
+    : Number(toDecimal(order.depositAmount || 0).toFixed(2));
 
-  const totalPaid = Math.round(rawPaid * 100) / 100;
-  const balanceDue = Math.max(0, Math.round((totalAmount - totalPaid) * 100) / 100);
+  const totalPaid = Number(new Decimal(rawPaid).toFixed(2));
+  const balanceDue = Math.max(0, Number(new Decimal(totalAmount).minus(totalPaid).toFixed(2)));
 
   let paymentStatus: "UNPAID" | "PARTIALLY_PAID" | "PAID";
   if (totalPaid <= 0) {
@@ -63,7 +90,9 @@ export async function listOrders(businessId: string, customerId: string) {
 
   const orders = await prisma.order.findMany({
     where: {
+      businessId,
       customerId,
+      deletedAt: null,
     },
     include: {
       customer: true,
@@ -88,9 +117,8 @@ export async function listOrders(businessId: string, customerId: string) {
 
 export async function listAllOrders(businessId: string, query?: OrderQueryInput) {
   const whereClause: Prisma.OrderWhereInput = {
-    customer: {
-      businessId,
-    },
+    businessId,
+    deletedAt: null,
   };
 
   if (query?.status) {
@@ -106,12 +134,12 @@ export async function listAllOrders(businessId: string, query?: OrderQueryInput)
   }
 
   if (query?.search) {
-    const s = query.search.trim();
+    const search = query.search.trim();
     whereClause.OR = [
-      { garmentType: { contains: s, mode: "insensitive" } },
-      { description: { contains: s, mode: "insensitive" } },
-      { customer: { firstName: { contains: s, mode: "insensitive" } } },
-      { customer: { lastName: { contains: s, mode: "insensitive" } } },
+      { garmentType: { contains: search, mode: "insensitive" } },
+      { description: { contains: search, mode: "insensitive" } },
+      { customer: { firstName: { contains: search, mode: "insensitive" } } },
+      { customer: { lastName: { contains: search, mode: "insensitive" } } },
     ];
   }
 
@@ -149,6 +177,8 @@ export async function getOrder(
     where: {
       id: orderId,
       customerId,
+      businessId,
+      deletedAt: null,
     },
     include: {
       customer: true,
@@ -166,9 +196,7 @@ export async function getOrder(
   });
 
   if (!order) {
-    const error = new Error("Order not found.");
-    error.name = "NOT_FOUND";
-    throw error;
+    throw new AppError("Order not found.", 404, true, "NOT_FOUND");
   }
 
   return formatOrderSummary(order);
@@ -181,18 +209,25 @@ export async function createOrder(
 ) {
   await verifyCustomerOwnership(businessId, customerId);
 
-  const deposit = input.depositAmount ?? 0;
-  const initialStatus = input.status || OrderStatus.NEW;
+  const deposit = Number(toDecimal(input.depositAmount ?? 0).toFixed(2));
+  const initialStatus = input.status ?? OrderStatus.NEW;
+
+  if (initialStatus === OrderStatus.DELIVERED) {
+    throw new AppError("An order cannot be created as delivered.", 400, true, "INVALID_STATUS_TRANSITION");
+  }
 
   const createData: Prisma.OrderCreateInput = {
+    business: {
+      connect: { id: businessId },
+    },
     customer: {
       connect: { id: customerId },
     },
     garmentType: input.garmentType.trim(),
     description: input.description?.trim() || null,
     quantity: input.quantity ?? 1,
-    totalAmount: new Prisma.Decimal(input.totalAmount),
-    depositAmount: new Prisma.Decimal(deposit),
+    totalAmount: new Prisma.Decimal(toDecimal(input.totalAmount).toFixed(2)),
+    depositAmount: new Prisma.Decimal(toDecimal(deposit).toFixed(2)),
     priority: input.priority || "MEDIUM",
     status: initialStatus,
     expectedDate: input.expectedDate ? new Date(input.expectedDate) : null,
@@ -211,7 +246,10 @@ export async function createOrder(
     createData.payments = {
       create: [
         {
-          amount: new Prisma.Decimal(deposit),
+          business: {
+            connect: { id: businessId },
+          },
+          amount: new Prisma.Decimal(toDecimal(deposit).toFixed(2)),
           method: "CASH",
           notes: "Initial deposit upon order creation",
         },
@@ -239,6 +277,8 @@ export async function updateOrder(
     where: {
       id: orderId,
       customerId,
+      businessId,
+      deletedAt: null,
     },
     include: {
       payments: true,
@@ -248,23 +288,24 @@ export async function updateOrder(
   });
 
   if (!existing) {
-    const error = new Error("Order not found.");
-    error.name = "NOT_FOUND";
-    throw error;
+    throw new AppError("Order not found.", 404, true, "NOT_FOUND");
   }
 
-  const effectiveTotal = Math.round(
-    (input.totalAmount !== undefined ? input.totalAmount : Number(existing.totalAmount)) * 100
-  ) / 100;
+  if (input.status && input.status !== existing.status) {
+    validateStatusTransition(existing.status, input.status);
+  }
 
-  const existingPaid = Math.round(
-    existing.payments.reduce((sum, p) => sum + Number(p.amount), 0) * 100
-  ) / 100;
+  const effectiveTotal = input.totalAmount !== undefined
+    ? Number(toDecimal(input.totalAmount).toFixed(2))
+    : Number(toDecimal(existing.totalAmount).toFixed(2));
+
+  const existingPaid = existing.payments.reduce(
+    (sum, payment) => sum + Number(toDecimal(payment.amount).toFixed(2)),
+    0,
+  );
 
   if (existingPaid > effectiveTotal) {
-    const error = new Error("Total amount cannot be less than total payments already recorded.");
-    error.name = "VALIDATION_ERROR";
-    throw error;
+    throw new AppError("Total amount cannot be less than total payments already recorded.", 400, true, "VALIDATION_ERROR");
   }
 
   let deliveredAt = existing.deliveredAt;
@@ -289,7 +330,7 @@ export async function updateOrder(
   if (input.priority !== undefined && input.priority !== existing.priority) {
     historyEntriesToCreate.push({
       fromStatus: existing.status,
-      toStatus: input.status || existing.status,
+      toStatus: input.status ?? existing.status,
       note: `Priority changed from ${existing.priority} to ${input.priority}`,
     });
   }
@@ -307,10 +348,10 @@ export async function updateOrder(
       }),
       ...(input.quantity !== undefined && { quantity: input.quantity }),
       ...(input.totalAmount !== undefined && {
-        totalAmount: new Prisma.Decimal(input.totalAmount),
+        totalAmount: new Prisma.Decimal(toDecimal(input.totalAmount).toFixed(2)),
       }),
       ...(input.depositAmount !== undefined && {
-        depositAmount: new Prisma.Decimal(input.depositAmount),
+        depositAmount: new Prisma.Decimal(toDecimal(input.depositAmount).toFixed(2)),
       }),
       ...(input.priority !== undefined && { priority: input.priority }),
       ...(input.status !== undefined && { status: input.status }),
@@ -343,19 +384,21 @@ export async function deleteOrder(
     where: {
       id: orderId,
       customerId,
+      businessId,
+      deletedAt: null,
     },
     select: { id: true },
   });
 
   if (!existing) {
-    const error = new Error("Order not found.");
-    error.name = "NOT_FOUND";
-    throw error;
+    throw new AppError("Order not found.", 404, true, "NOT_FOUND");
   }
 
-  return prisma.order.delete({
-    where: {
-      id: existing.id,
+  return prisma.order.update({
+    where: { id: existing.id },
+    data: {
+      deletedAt: new Date(),
+      status: OrderStatus.CANCELLED,
     },
   });
 }
@@ -363,9 +406,8 @@ export async function deleteOrder(
 export async function getProductionMetrics(businessId: string) {
   const orders = await prisma.order.findMany({
     where: {
-      customer: {
-        businessId,
-      },
+      businessId,
+      deletedAt: null,
     },
     include: {
       payments: true,
@@ -395,8 +437,11 @@ export async function getProductionMetrics(businessId: string) {
   orders.forEach((order) => {
     statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
 
-    const total = Number(order.totalAmount);
-    const paid = order.payments.reduce((s, p) => s + Number(p.amount), 0);
+    const total = Number(toDecimal(order.totalAmount).toFixed(2));
+    const paid = order.payments.reduce(
+      (sum, payment) => sum + Number(toDecimal(payment.amount).toFixed(2)),
+      0,
+    );
 
     rawRevenue += total;
     rawCollected += paid;
@@ -411,18 +456,16 @@ export async function getProductionMetrics(businessId: string) {
     }
   });
 
-  const totalRevenue = Math.round(rawRevenue * 100) / 100;
-  const totalCollected = Math.round(rawCollected * 100) / 100;
-  const balanceOutstanding = Math.max(0, Math.round((totalRevenue - totalCollected) * 100) / 100);
-
   return {
     totalOrders,
     activeOrders,
     completedOrders,
     urgentOrders,
-    totalRevenue,
-    totalCollected,
-    balanceOutstanding,
+    totalRevenue: Number(new Decimal(rawRevenue).toFixed(2)),
+    totalCollected: Number(new Decimal(rawCollected).toFixed(2)),
+    balanceOutstanding: Number(
+      new Decimal(rawRevenue).minus(rawCollected).max(0).toFixed(2),
+    ),
     statusCounts,
   };
 }

@@ -1,5 +1,7 @@
+import Decimal from "decimal.js";
 import { MovementType, Prisma } from "@prisma/client";
 import prisma from "../lib/prisma.js";
+import { AppError } from "../middleware/errorHandler.js";
 import type {
   AdjustStockInput,
   CreateMaterialInput,
@@ -8,6 +10,12 @@ import type {
 } from "../validators/inventory.validator.js";
 
 export type StockStatus = "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
+
+const toDecimal = (value: number | string | Prisma.Decimal): Decimal =>
+  new Decimal(value.toString());
+
+const toMoney = (value: number | string | Prisma.Decimal): number =>
+  Number(toDecimal(value).toFixed(2));
 
 export function getStockStatus(
   currentQuantity: number,
@@ -27,26 +35,26 @@ export function formatMaterialSummary(
     include: { stockMovements: true };
   }>,
 ) {
-  const quantity = Math.round(Number(material.currentQuantity) * 100) / 100;
-  const minStock = Math.round(Number(material.minimumStockLevel) * 100) / 100;
-  const cost = Math.round(Number(material.costPerUnit) * 100) / 100;
+  const currentQuantity = toMoney(material.currentQuantity);
+  const minimumStockLevel = toMoney(material.minimumStockLevel);
+  const costPerUnit = toMoney(material.costPerUnit);
 
-  const stockStatus = getStockStatus(quantity, minStock);
-  const estimatedValue = Math.max(0, Math.round(quantity * cost * 100) / 100);
+  const stockStatus = getStockStatus(currentQuantity, minimumStockLevel);
+  const estimatedValue = Math.max(0, Number(new Decimal(currentQuantity).mul(costPerUnit).toFixed(2)));
 
   return {
     ...material,
-    currentQuantity: quantity,
-    minimumStockLevel: minStock,
-    costPerUnit: cost,
+    currentQuantity,
+    minimumStockLevel,
+    costPerUnit,
     stockStatus,
     estimatedValue,
     stockMovements: material.stockMovements
-      ? material.stockMovements.map((m) => ({
-          ...m,
-          quantityChange: Math.round(Number(m.quantityChange) * 100) / 100,
-          quantityBefore: Math.round(Number(m.quantityBefore) * 100) / 100,
-          quantityAfter: Math.round(Number(m.quantityAfter) * 100) / 100,
+      ? material.stockMovements.map((movement) => ({
+          ...movement,
+          quantityChange: toMoney(movement.quantityChange),
+          quantityBefore: toMoney(movement.quantityBefore),
+          quantityAfter: toMoney(movement.quantityAfter),
         }))
       : [],
   };
@@ -55,6 +63,7 @@ export function formatMaterialSummary(
 export async function listMaterials(businessId: string, query?: MaterialQueryInput) {
   const whereClause: Prisma.MaterialWhereInput = {
     businessId,
+    deletedAt: null,
   };
 
   if (query?.isActive !== undefined) {
@@ -66,11 +75,11 @@ export async function listMaterials(businessId: string, query?: MaterialQueryInp
   }
 
   if (query?.search) {
-    const s = query.search.trim();
+    const search = query.search.trim();
     whereClause.OR = [
-      { name: { contains: s, mode: "insensitive" } },
-      { sku: { contains: s, mode: "insensitive" } },
-      { description: { contains: s, mode: "insensitive" } },
+      { name: { contains: search, mode: "insensitive" } },
+      { sku: { contains: search, mode: "insensitive" } },
+      { description: { contains: search, mode: "insensitive" } },
     ];
   }
 
@@ -88,7 +97,7 @@ export async function listMaterials(businessId: string, query?: MaterialQueryInp
   const formatted = materials.map(formatMaterialSummary);
 
   if (query?.status && query.status !== "ALL") {
-    return formatted.filter((m) => m.stockStatus === query.status);
+    return formatted.filter((material) => material.stockStatus === query.status);
   }
 
   return formatted;
@@ -99,6 +108,7 @@ export async function getMaterial(businessId: string, materialId: string) {
     where: {
       id: materialId,
       businessId,
+      deletedAt: null,
     },
     include: {
       stockMovements: {
@@ -108,9 +118,7 @@ export async function getMaterial(businessId: string, materialId: string) {
   });
 
   if (!material) {
-    const error = new Error("Material not found.");
-    error.name = "NOT_FOUND";
-    throw error;
+    throw new AppError("Material not found.", 404, true, "NOT_FOUND");
   }
 
   return formatMaterialSummary(material);
@@ -126,18 +134,19 @@ export async function createMaterial(
       where: {
         businessId,
         sku: input.sku.trim(),
+        deletedAt: null,
       },
       select: { id: true },
     });
 
     if (existingSku) {
-      const error = new Error(`Material SKU '${input.sku}' is already in use.`);
-      error.name = "VALIDATION_ERROR";
-      throw error;
+      throw new AppError(`Material SKU '${input.sku}' is already in use.`, 409, true, "CONFLICT");
     }
   }
 
-  const initialQty = Math.round((input.initialQuantity ?? 0) * 100) / 100;
+  const initialQuantity = toDecimal(input.initialQuantity ?? 0).toDecimalPlaces(2);
+  const minimumStockLevel = toDecimal(input.minimumStockLevel ?? 0).toDecimalPlaces(2);
+  const costPerUnit = toDecimal(input.costPerUnit ?? 0).toDecimalPlaces(2);
 
   const result = await prisma.$transaction(async (tx) => {
     const material = await tx.material.create({
@@ -148,18 +157,19 @@ export async function createMaterial(
         description: input.description?.trim() || null,
         category: input.category,
         unit: input.unit,
-        currentQuantity: new Prisma.Decimal(initialQty),
-        minimumStockLevel: new Prisma.Decimal(input.minimumStockLevel ?? 0),
-        costPerUnit: new Prisma.Decimal(input.costPerUnit ?? 0),
-        ...(initialQty > 0 && {
+        currentQuantity: new Prisma.Decimal(initialQuantity.toFixed(2)),
+        minimumStockLevel: new Prisma.Decimal(minimumStockLevel.toFixed(2)),
+        costPerUnit: new Prisma.Decimal(costPerUnit.toFixed(2)),
+        ...(initialQuantity.gt(0) && {
           stockMovements: {
             create: {
+              businessId,
               type: MovementType.INITIAL_STOCK,
-              quantityChange: new Prisma.Decimal(initialQty),
-              quantityBefore: new Prisma.Decimal(0),
-              quantityAfter: new Prisma.Decimal(initialQty),
+              quantityChange: new Prisma.Decimal(initialQuantity.toFixed(2)),
+              quantityBefore: new Prisma.Decimal("0.00"),
+              quantityAfter: new Prisma.Decimal(initialQuantity.toFixed(2)),
               notes: "Initial stock created",
-              createdById: userId || null,
+              createdById: userId ?? null,
             },
           },
         }),
@@ -170,7 +180,6 @@ export async function createMaterial(
         },
       },
     });
-
     return material;
   });
 
@@ -186,13 +195,12 @@ export async function updateMaterial(
     where: {
       id: materialId,
       businessId,
+      deletedAt: null,
     },
   });
 
   if (!existing) {
-    const error = new Error("Material not found.");
-    error.name = "NOT_FOUND";
-    throw error;
+    throw new AppError("Material not found.", 404, true, "NOT_FOUND");
   }
 
   if (input.sku && input.sku.trim() !== existing.sku) {
@@ -201,14 +209,13 @@ export async function updateMaterial(
         businessId,
         sku: input.sku.trim(),
         id: { not: materialId },
+        deletedAt: null,
       },
       select: { id: true },
     });
 
     if (duplicateSku) {
-      const error = new Error(`Material SKU '${input.sku}' is already in use.`);
-      error.name = "VALIDATION_ERROR";
-      throw error;
+      throw new AppError(`Material SKU '${input.sku}' is already in use.`, 409, true, "CONFLICT");
     }
   }
 
@@ -223,10 +230,10 @@ export async function updateMaterial(
       ...(input.category !== undefined && { category: input.category }),
       ...(input.unit !== undefined && { unit: input.unit }),
       ...(input.minimumStockLevel !== undefined && {
-        minimumStockLevel: new Prisma.Decimal(input.minimumStockLevel),
+        minimumStockLevel: new Prisma.Decimal(toDecimal(input.minimumStockLevel).toFixed(2)),
       }),
       ...(input.costPerUnit !== undefined && {
-        costPerUnit: new Prisma.Decimal(input.costPerUnit),
+        costPerUnit: new Prisma.Decimal(toDecimal(input.costPerUnit).toFixed(2)),
       }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
     },
@@ -240,54 +247,190 @@ export async function updateMaterial(
   return formatMaterialSummary(updated);
 }
 
+export async function deductStock(
+  businessId: string,
+  materialId: string,
+  requestedQuantity: number,
+  metadata?: {
+    orderId?: string;
+    userId?: string;
+    notes?: string;
+  },
+) {
+  const requested = toDecimal(requestedQuantity).toDecimalPlaces(2);
+
+  if (!requested.isFinite() || requested.lte(0)) {
+    throw new AppError("Requested quantity must be greater than zero.", 400, true, "VALIDATION_ERROR");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const material = await tx.material.findFirst({
+      where: {
+        id: materialId,
+        businessId,
+        deletedAt: null,
+      },
+    });
+
+    if (!material) {
+      throw new AppError("Material not found.", 404, true, "NOT_FOUND");
+    }
+
+    const currentQuantity = toDecimal(material.currentQuantity);
+
+    if (currentQuantity.lt(requested)) {
+      throw new AppError(
+        `Insufficient stock for material "${material.name}". Requested ${requested.toFixed(2)} but available ${currentQuantity.toFixed(2)} ${material.unit}.`,
+        400,
+        true,
+        "INSUFFICIENT_STOCK",
+      );
+    }
+
+    const nextQuantity = currentQuantity.minus(requested);
+
+    await tx.material.update({
+      where: { id: materialId },
+      data: {
+        currentQuantity: { decrement: requested.toNumber() },
+      },
+    });
+
+    await tx.stockMovement.create({
+      data: {
+        businessId,
+        materialId,
+        orderId: metadata?.orderId ?? null,
+        type: MovementType.USAGE,
+        quantityChange: new Prisma.Decimal(requested.neg().toFixed(2)),
+        quantityBefore: new Prisma.Decimal(currentQuantity.toFixed(2)),
+        quantityAfter: new Prisma.Decimal(nextQuantity.toFixed(2)),
+        notes: metadata?.notes ?? `Stock deduction for order ${metadata?.orderId ?? "inventory"}`,
+        createdById: metadata?.userId ?? null,
+      },
+    });
+
+    return tx.material.findUnique({
+      where: { id: materialId },
+      include: { stockMovements: { orderBy: { createdAt: "desc" } } },
+    });
+  });
+}
+
+export async function restockItems(
+  businessId: string,
+  materialId: string,
+  quantity: number,
+  metadata?: {
+    orderId?: string;
+    userId?: string;
+    notes?: string;
+  },
+) {
+  const amount = toDecimal(quantity).toDecimalPlaces(2);
+
+  if (!amount.isFinite() || amount.lte(0)) {
+    throw new AppError("Restock quantity must be greater than zero.", 400, true, "VALIDATION_ERROR");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const material = await tx.material.findFirst({
+      where: {
+        id: materialId,
+        businessId,
+        deletedAt: null,
+      },
+    });
+
+    if (!material) {
+      throw new AppError("Material not found.", 404, true, "NOT_FOUND");
+    }
+
+    const currentQuantity = toDecimal(material.currentQuantity);
+    const nextQuantity = currentQuantity.plus(amount);
+
+    await tx.material.update({
+      where: { id: materialId },
+      data: {
+        currentQuantity: { increment: amount.toNumber() },
+      },
+    });
+
+    await tx.stockMovement.create({
+      data: {
+        businessId,
+        materialId,
+        orderId: metadata?.orderId ?? null,
+        type: MovementType.RETURN,
+        quantityChange: new Prisma.Decimal(amount.toFixed(2)),
+        quantityBefore: new Prisma.Decimal(currentQuantity.toFixed(2)),
+        quantityAfter: new Prisma.Decimal(nextQuantity.toFixed(2)),
+        notes: metadata?.notes ?? "Inventory restock / reversal",
+        createdById: metadata?.userId ?? null,
+      },
+    });
+
+    return tx.material.findUnique({
+      where: { id: materialId },
+      include: { stockMovements: { orderBy: { createdAt: "desc" } } },
+    });
+  });
+}
+
 export async function adjustStock(
   businessId: string,
   materialId: string,
   input: AdjustStockInput,
   userId?: string,
 ) {
+  const quantityChange = toDecimal(input.quantityChange).toDecimalPlaces(2);
+
+  if (!quantityChange.isFinite() || quantityChange.eq(0)) {
+    throw new AppError("Quantity change cannot be zero.", 400, true, "VALIDATION_ERROR");
+  }
+
   const result = await prisma.$transaction(async (tx) => {
     const material = await tx.material.findFirst({
       where: {
         id: materialId,
         businessId,
+        deletedAt: null,
       },
     });
 
     if (!material) {
-      const error = new Error("Material not found.");
-      error.name = "NOT_FOUND";
-      throw error;
+      throw new AppError("Material not found.", 404, true, "NOT_FOUND");
     }
 
-    const currentQty = Math.round(Number(material.currentQuantity) * 100) / 100;
-    const change = Math.round(input.quantityChange * 100) / 100;
-    const newQty = Math.round((currentQty + change) * 100) / 100;
+    const currentQty = toDecimal(material.currentQuantity);
+    const nextQty = currentQty.plus(quantityChange);
 
-    if (newQty < 0) {
-      const error = new Error(
-        `Stock adjustment would result in negative stock. Current stock is ${currentQty} ${material.unit}, attempted change is ${change}.`,
+    if (nextQty.lt(0)) {
+      throw new AppError(
+        `Stock adjustment would result in negative stock. Current stock is ${currentQty.toFixed(2)} ${material.unit}, attempted change is ${quantityChange.toFixed(2)}.`,
+        400,
+        true,
+        "VALIDATION_ERROR",
       );
-      error.name = "VALIDATION_ERROR";
-      throw error;
     }
 
     await tx.material.update({
       where: { id: materialId },
       data: {
-        currentQuantity: new Prisma.Decimal(newQty),
+        currentQuantity: { increment: quantityChange.toNumber() },
       },
     });
 
     await tx.stockMovement.create({
       data: {
+        businessId,
         materialId,
         type: input.type,
-        quantityChange: new Prisma.Decimal(change),
-        quantityBefore: new Prisma.Decimal(currentQty),
-        quantityAfter: new Prisma.Decimal(newQty),
+        quantityChange: new Prisma.Decimal(quantityChange.toFixed(2)),
+        quantityBefore: new Prisma.Decimal(currentQty.toFixed(2)),
+        quantityAfter: new Prisma.Decimal(nextQty.toFixed(2)),
         notes: input.notes?.trim() || null,
-        createdById: userId || null,
+        createdById: userId ?? null,
       },
     });
 
@@ -311,20 +454,18 @@ export async function deleteMaterial(businessId: string, materialId: string) {
     where: {
       id: materialId,
       businessId,
+      deletedAt: null,
     },
     select: { id: true },
   });
 
   if (!existing) {
-    const error = new Error("Material not found.");
-    error.name = "NOT_FOUND";
-    throw error;
+    throw new AppError("Material not found.", 404, true, "NOT_FOUND");
   }
 
-  // Soft deactivation to preserve stock history audit trail
   return prisma.material.update({
     where: { id: materialId },
-    data: { isActive: false },
+    data: { isActive: false, deletedAt: new Date() },
   });
 }
 
@@ -332,6 +473,7 @@ export async function getInventorySummary(businessId: string) {
   const materials = await prisma.material.findMany({
     where: {
       businessId,
+      deletedAt: null,
     },
   });
 
@@ -352,34 +494,32 @@ export async function getInventorySummary(businessId: string) {
     OTHER: 0,
   };
 
-  materials.forEach((m) => {
-    categoryCounts[m.category] = (categoryCounts[m.category] || 0) + 1;
+  materials.forEach((material) => {
+    categoryCounts[material.category] = (categoryCounts[material.category] || 0) + 1;
 
-    if (m.isActive) {
+    if (material.isActive) {
       activeMaterials += 1;
 
-      const qty = Math.round(Number(m.currentQuantity) * 100) / 100;
-      const minStock = Math.round(Number(m.minimumStockLevel) * 100) / 100;
-      const cost = Math.round(Number(m.costPerUnit) * 100) / 100;
+      const quantity = toMoney(material.currentQuantity);
+      const minimumStockLevel = toMoney(material.minimumStockLevel);
+      const costPerUnit = toMoney(material.costPerUnit);
 
-      rawValue += qty * cost;
+      rawValue += quantity * costPerUnit;
 
-      if (qty <= 0) {
+      if (quantity <= 0) {
         outOfStockMaterials += 1;
-      } else if (qty <= minStock) {
+      } else if (quantity <= minimumStockLevel) {
         lowStockMaterials += 1;
       }
     }
   });
-
-  const totalInventoryValue = Math.round(rawValue * 100) / 100;
 
   return {
     totalMaterials,
     activeMaterials,
     lowStockMaterials,
     outOfStockMaterials,
-    totalInventoryValue,
+    totalInventoryValue: Number(new Decimal(rawValue).toFixed(2)),
     categoryCounts,
   };
 }

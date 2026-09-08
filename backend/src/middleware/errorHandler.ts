@@ -5,11 +5,14 @@ import { Prisma } from "@prisma/client";
 export class AppError extends Error {
   public statusCode: number;
   public isOperational: boolean;
+  public code?: string;
 
-  constructor(message: string, statusCode = 500, isOperational = true) {
+  constructor(message: string, statusCode = 500, isOperational = true, code?: string) {
     super(message);
+    this.name = code ?? "AppError";
     this.statusCode = statusCode;
     this.isOperational = isOperational;
+    this.code = code;
     Error.captureStackTrace(this, this.constructor);
   }
 }
@@ -44,27 +47,29 @@ export function errorHandler(
     res.status(err.statusCode).json({
       success: false,
       error: err.message,
+      ...(err.code ? { code: err.code } : {}),
     });
     return;
   }
 
-  // Handle Prisma Database Errors
-  if (err instanceof Prisma.PrismaClientKnownRequestError) {
-    if (err.code === "P2002") {
+  const prismaError = err as Error & { code?: string };
+
+  if (prismaError instanceof Prisma.PrismaClientKnownRequestError) {
+    if (prismaError.code === "P2002") {
       res.status(409).json({
         success: false,
         error: "A record with this value already exists.",
       });
       return;
     }
-    if (err.code === "P2025") {
+    if (prismaError.code === "P2025") {
       res.status(404).json({
         success: false,
         error: "Requested record not found.",
       });
       return;
     }
-    if (err.code === "P2003") {
+    if (prismaError.code === "P2003") {
       res.status(400).json({
         success: false,
         error: "Referenced relation record not found.",
