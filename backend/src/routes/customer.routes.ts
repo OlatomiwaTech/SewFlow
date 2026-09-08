@@ -7,15 +7,22 @@ import {
   updateCustomer,
 } from "../controllers/customer.controller.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
+import { validateRequest } from "../middleware/validateRequest.js";
+import {
+  createCustomerSchema,
+  customerIdSchema,
+  customerListQuerySchema,
+  updateCustomerSchema,
+} from "../validators/customer.validator.js";
 
 const router = Router();
 
 router.use(requireAuth);
 
-router.get("/", listCustomers);
-router.post("/", createCustomer);
-router.get("/:id", getCustomer);
-router.patch("/:id", updateCustomer);
-router.delete("/:id", deleteCustomer);
+router.get("/", validateRequest({ query: customerListQuerySchema }), listCustomers);
+router.post("/", validateRequest({ body: createCustomerSchema }), createCustomer);
+router.get("/:id", validateRequest({ params: customerIdSchema }), getCustomer);
+router.patch("/:id", validateRequest({ params: customerIdSchema, body: updateCustomerSchema }), updateCustomer);
+router.delete("/:id", validateRequest({ params: customerIdSchema }), deleteCustomer);
 
 export default router;

@@ -9,17 +9,25 @@ import {
   updateMaterial,
 } from "../controllers/inventory.controller.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
+import { validateRequest } from "../middleware/validateRequest.js";
+import {
+  adjustStockSchema,
+  createMaterialSchema,
+  materialParamsSchema,
+  materialQuerySchema,
+  updateMaterialSchema,
+} from "../validators/inventory.validator.js";
 
 const router = Router();
 
 router.use(requireAuth);
 
 router.get("/summary", getInventorySummary);
-router.get("/", listMaterials);
-router.post("/", createMaterial);
-router.get("/:id", getMaterial);
-router.patch("/:id", updateMaterial);
-router.post("/:id/stock", adjustStock);
-router.delete("/:id", deleteMaterial);
+router.get("/", validateRequest({ query: materialQuerySchema }), listMaterials);
+router.post("/", validateRequest({ body: createMaterialSchema }), createMaterial);
+router.get("/:id", validateRequest({ params: materialParamsSchema }), getMaterial);
+router.patch("/:id", validateRequest({ params: materialParamsSchema, body: updateMaterialSchema }), updateMaterial);
+router.post("/:id/stock", validateRequest({ params: materialParamsSchema, body: adjustStockSchema }), adjustStock);
+router.delete("/:id", validateRequest({ params: materialParamsSchema }), deleteMaterial);
 
 export default router;

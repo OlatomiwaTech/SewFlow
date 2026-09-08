@@ -1,4 +1,4 @@
-import Decimal from "decimal.js";
+import { Decimal } from "decimal.js";
 import { OrderStatus, Prisma } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 import { AppError } from "../middleware/errorHandler.js";
