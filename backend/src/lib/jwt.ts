@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+import jwt, { type SignOptions } from "jsonwebtoken";
 import { env } from "../config/env.js";
 import type { UserRole } from "../types/express.js";
 
@@ -11,7 +11,7 @@ export interface AuthTokenPayload {
 
 export function signAccessToken(payload: AuthTokenPayload): string {
   return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: "1d",
+    expiresIn: env.JWT_EXPIRES_IN as SignOptions["expiresIn"],
   });
 }
 

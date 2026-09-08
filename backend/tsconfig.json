@@ -9,6 +9,9 @@
     "outDir": "dist",
     "rootDir": "src",
     "baseUrl": ".",
+    "paths": {
+      "@prisma/client": ["../node_modules/.prisma/client/index.d.ts"]
+    },
     "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*.ts"]

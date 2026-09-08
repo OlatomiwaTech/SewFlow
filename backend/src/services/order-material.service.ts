@@ -360,7 +360,6 @@ export async function deleteOrderMaterial(
         await tx.stockMovement.create({
           data: {
             businessId,
-            businessId,
             materialId: material.id,
             orderId,
             type: MovementType.RETURN,
