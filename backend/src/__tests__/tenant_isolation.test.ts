@@ -36,6 +36,8 @@ describe("HTTP tenant isolation", () => {
   let tenantB: Awaited<ReturnType<typeof createTenant>>;
   let customerB: { id: string };
   let orderB: { id: string };
+  let paymentB: { id: string };
+  let orderMaterialB: { id: string };
 
   before(async () => {
     await prisma.$connect();
@@ -68,10 +70,41 @@ describe("HTTP tenant isolation", () => {
       },
       select: { id: true },
     });
+    const materialB = await prisma.material.create({
+      data: {
+        businessId: tenantB.business.id,
+        code: `FAB-${randomUUID()}`,
+        name: "Tenant B fabric",
+        category: "FABRIC",
+        unit: "YARD",
+        costPerUnit: 10,
+      },
+    });
+    orderMaterialB = await prisma.orderMaterial.create({
+      data: {
+        businessId: tenantB.business.id,
+        orderId: orderB.id,
+        materialId: materialB.id,
+        plannedQuantity: 1,
+        unit: "YARD",
+        unitCost: 10,
+      },
+      select: { id: true },
+    });
+    paymentB = await prisma.payment.create({
+      data: {
+        businessId: tenantB.business.id,
+        orderId: orderB.id,
+        amount: 10,
+        method: "CASH",
+      },
+      select: { id: true },
+    });
   });
 
   afterEach(async () => {
     if (createdBusinessIds.length > 0) {
+      await prisma.orderMaterial.deleteMany({ where: { businessId: { in: createdBusinessIds } } });
       await prisma.business.deleteMany({ where: { id: { in: createdBusinessIds.splice(0) } } });
     }
   });
@@ -119,5 +152,17 @@ describe("HTTP tenant isolation", () => {
     assert.equal(response.status, 201);
     assert.equal(response.body.data.businessId, tenantA.business.id);
     assert.equal(await prisma.customer.count({ where: { id: response.body.data.id, businessId: tenantB.business.id } }), 0);
+  });
+
+  test("rejects cross-tenant payment and order-material access", async () => {
+    const paymentResponse = await request(app)
+      .get(`/api/customers/${customerB.id}/orders/${orderB.id}/payments/${paymentB.id}`)
+      .set("Authorization", `Bearer ${tenantA.token}`);
+    const materialResponse = await request(app)
+      .patch(`/api/customers/${customerB.id}/orders/${orderB.id}/materials/${orderMaterialB.id}`)
+      .set("Authorization", `Bearer ${tenantA.token}`);
+
+    assert.equal(paymentResponse.status, 404);
+    assert.equal(materialResponse.status, 404);
   });
 });

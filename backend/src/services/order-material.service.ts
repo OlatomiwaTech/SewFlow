@@ -29,6 +29,7 @@ async function verifyOrderOwnership(
     where: {
       id: orderId,
       customerId,
+      businessId,
     },
     select: { id: true },
   });
@@ -79,6 +80,7 @@ export async function listOrderMaterials(
   const materials = await prisma.orderMaterial.findMany({
     where: {
       orderId,
+      businessId,
     },
     include: {
       material: true,
@@ -148,6 +150,7 @@ export async function updateOrderMaterial(
     where: {
       id: orderMaterialId,
       orderId,
+      businessId,
     },
   });
 
@@ -193,6 +196,7 @@ export async function recordActualConsumption(
       where: {
         id: orderMaterialId,
         orderId,
+        businessId,
       },
     });
 
@@ -331,6 +335,7 @@ export async function deleteOrderMaterial(
       where: {
         id: orderMaterialId,
         orderId,
+        businessId,
       },
     });
 

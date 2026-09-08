@@ -28,6 +28,7 @@ async function verifyOrderOwnership(
     where: {
       id: orderId,
       customerId,
+      businessId,
     },
     include: {
       payments: true,
@@ -53,6 +54,7 @@ export async function listPayments(
   return prisma.payment.findMany({
     where: {
       orderId: order.id,
+      businessId,
     },
     orderBy: {
       paymentDate: "desc",
@@ -72,6 +74,7 @@ export async function getPayment(
     where: {
       id: paymentId,
       orderId: order.id,
+      businessId,
     },
   });
 
@@ -135,6 +138,7 @@ export async function updatePayment(
     where: {
       id: paymentId,
       orderId: order.id,
+      businessId,
     },
   });
 
@@ -200,6 +204,7 @@ export async function deletePayment(
     where: {
       id: paymentId,
       orderId: order.id,
+      businessId,
     },
     select: { id: true },
   });
