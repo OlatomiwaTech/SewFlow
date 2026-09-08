@@ -231,7 +231,7 @@ describe("Order Material Usage & Inventory Integration Audit", () => {
           actualQuantity: 5, // Requesting 5 yards when only 2 available
         });
       },
-      (err: any) => err.name === "VALIDATION_ERROR" && err.message.includes("Insufficient stock"),
+      (err: any) => err.name === "INSUFFICIENT_STOCK" && err.message.includes("Insufficient stock"),
     );
   });
 });

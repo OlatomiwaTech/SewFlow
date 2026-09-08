@@ -71,6 +71,7 @@ describe("real database stock race", () => {
   });
 
   afterEach(async () => {
+    await prisma.orderMaterial.deleteMany({ where: { businessId: { in: businessIds } } });
     await prisma.business.deleteMany({ where: { id: { in: businessIds.splice(0) } } });
   });
 
