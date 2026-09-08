@@ -111,6 +111,7 @@ export async function createPayment(
 
   return prisma.payment.create({
     data: {
+      businessId,
       orderId: order.id,
       amount: new Prisma.Decimal(inputAmount),
       method: input.method,

@@ -30,7 +30,8 @@ export async function listMeasurements(businessId: string, customerId: string) {
 
   return prisma.measurement.findMany({
     where: {
-      customerId,
+      businessId,
+      measurementSet: { customerId, businessId },
     },
     orderBy: {
       createdAt: "desc",
@@ -48,7 +49,8 @@ export async function getMeasurement(
   const measurement = await prisma.measurement.findFirst({
     where: {
       id: measurementId,
-      customerId,
+      businessId,
+      measurementSet: { customerId, businessId },
     },
   });
 
@@ -68,9 +70,16 @@ export async function createMeasurement(
 ) {
   await verifyCustomerOwnership(businessId, customerId);
 
+  const measurementSet = await prisma.measurementSet.findFirst({
+    where: { businessId, customerId, orderId: null, deletedAt: null },
+  }) ?? await prisma.measurementSet.create({
+    data: { businessId, customerId, version: 1 },
+  });
+
   return prisma.measurement.create({
     data: {
-      customerId,
+      businessId,
+      measurementSetId: measurementSet.id,
       unit: input.unit ?? "CM",
       neck: input.neck !== undefined ? input.neck : null,
       shoulder: input.shoulder !== undefined ? input.shoulder : null,
@@ -99,7 +108,8 @@ export async function updateMeasurement(
   const existing = await prisma.measurement.findFirst({
     where: {
       id: measurementId,
-      customerId,
+      businessId,
+      measurementSet: { customerId, businessId },
     },
     select: { id: true },
   });
@@ -142,7 +152,8 @@ export async function deleteMeasurement(
   const existing = await prisma.measurement.findFirst({
     where: {
       id: measurementId,
-      customerId,
+      businessId,
+      measurementSet: { customerId, businessId },
     },
     select: { id: true },
   });

@@ -235,6 +235,7 @@ export async function createOrder(
     history: {
       create: [
         {
+          businessId,
           toStatus: initialStatus,
           note: `Order created in ${initialStatus} status`,
         },
@@ -321,6 +322,7 @@ export async function updateOrder(
 
   if (input.status !== undefined && input.status !== existing.status) {
     historyEntriesToCreate.push({
+      businessId,
       fromStatus: existing.status,
       toStatus: input.status,
       note: `Status updated from ${existing.status} to ${input.status}`,
@@ -329,6 +331,7 @@ export async function updateOrder(
 
   if (input.priority !== undefined && input.priority !== existing.priority) {
     historyEntriesToCreate.push({
+      businessId,
       fromStatus: existing.status,
       toStatus: input.status ?? existing.status,
       note: `Priority changed from ${existing.priority} to ${input.priority}`,
@@ -464,7 +467,7 @@ export async function getProductionMetrics(businessId: string) {
     totalRevenue: Number(new Decimal(rawRevenue).toFixed(2)),
     totalCollected: Number(new Decimal(rawCollected).toFixed(2)),
     balanceOutstanding: Number(
-      new Decimal(rawRevenue).minus(rawCollected).max(0).toFixed(2),
+      Math.max(0, Number(new Decimal(rawRevenue).minus(rawCollected).toFixed(2))),
     ),
     statusCounts,
   };

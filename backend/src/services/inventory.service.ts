@@ -1,4 +1,5 @@
 import { Decimal } from "decimal.js";
+import { randomUUID } from "node:crypto";
 import { MovementType, Prisma } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 import { AppError } from "../middleware/errorHandler.js";
@@ -152,6 +153,7 @@ export async function createMaterial(
     const material = await tx.material.create({
       data: {
         businessId,
+        code: input.sku?.trim() || `MAT-${randomUUID()}`,
         name: input.name.trim(),
         sku: input.sku?.trim() || null,
         description: input.description?.trim() || null,
