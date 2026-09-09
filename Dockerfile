@@ -9,7 +9,7 @@ COPY frontend/package.json frontend/package.json
 RUN pnpm install --frozen-lockfile
 
 COPY backend backend
-RUN pnpm --filter backend prisma:generate
+RUN DATABASE_URL=postgresql://localhost:5432/sewflow DIRECT_URL=postgresql://localhost:5432/sewflow pnpm --filter backend prisma:generate
 RUN pnpm --filter backend build
 
 FROM node:20-alpine AS runner
@@ -25,7 +25,7 @@ RUN pnpm install --prod --frozen-lockfile
 
 COPY --from=builder /app/backend/dist ./backend/dist
 COPY --from=builder /app/backend/prisma ./backend/prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+RUN DATABASE_URL=postgresql://localhost:5432/sewflow DIRECT_URL=postgresql://localhost:5432/sewflow pnpm --filter backend prisma:generate
 
 WORKDIR /app/backend
 USER node
