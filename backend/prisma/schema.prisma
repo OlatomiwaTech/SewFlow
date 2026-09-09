@@ -83,6 +83,12 @@ enum MovementType {
   WASTE
 }
 
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
 model Business {
   id        String    @id @default(uuid())
   name      String
@@ -102,6 +108,23 @@ model Business {
 
   @@index([createdAt])
   @@index([deletedAt])
+}
+
+model AuditLog {
+  id           String      @id @default(uuid())
+  tenantId     String
+  actorId      String
+  action       AuditAction
+  entityName   String
+  entityId     String
+  previousState Json?
+  newState     Json?
+  ipAddress    String
+  timestamp    DateTime    @default(now())
+
+  @@index([tenantId, timestamp])
+  @@index([entityName, entityId])
+  @@index([actorId, timestamp])
 }
 
 model User {

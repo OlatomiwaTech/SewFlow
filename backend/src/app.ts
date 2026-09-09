@@ -16,8 +16,11 @@ import paymentRoutes from "./routes/payment.routes.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { env } from "./config/env.js";
 import { redisClient } from "./lib/redis.js";
+import { requestTracing } from "./middleware/tracing.js";
 
 const app = express();
+
+app.use(requestTracing);
 
 const allowedOrigins = new Set(env.CORS_ORIGIN.map((origin) => origin.replace(/\/+$/, "")));
 const configuredRedisClient = redisClient;

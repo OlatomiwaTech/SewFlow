@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { verifyAccessToken } from "../lib/jwt.js";
 import prisma from "../lib/prisma.js";
 import type { AuthenticatedUser, UserRole } from "../types/express.js";
+import { setAuthenticatedContext } from "./tracing.js";
 
 export type { AuthenticatedUser, UserRole } from "../types/express.js";
 
@@ -59,6 +60,7 @@ export async function requireAuth(
 
     req.user = user;
     req.tenantId = user.businessId;
+    setAuthenticatedContext(user.businessId, user.id);
     next();
   } catch {
     res.status(401).json({
