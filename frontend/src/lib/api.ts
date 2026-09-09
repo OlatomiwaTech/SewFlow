@@ -38,8 +38,14 @@ import type {
   UpdateMaterialInput,
 } from "@/types/inventory";
 
+const viteApiBaseUrl =
+  typeof import.meta !== "undefined" && typeof import.meta.env !== "undefined"
+    ? import.meta.env.VITE_API_BASE_URL
+    : undefined;
+
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
+  viteApiBaseUrl ||
+  process.env.NEXT_PUBLIC_API_URL ||
   "http://localhost:5000/api/v1";
 
 function formatUrl(baseUrl: string, path: string): string {
