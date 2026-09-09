@@ -72,3 +72,11 @@ jobs:
           node --test --experimental-test-coverage
           --test-coverage-lines=80
           backend/dist/__tests__/*.test.js
+
+      - name: Lint frontend
+        run: npm run lint --workspace frontend
+
+      - name: Build frontend
+        env:
+          NEXT_PUBLIC_API_URL: https://sewflow.onrender.com
+        run: npm run build --workspace frontend

@@ -13,6 +13,12 @@ export const createPaymentSchema = z.object({
     .max(100, "Reference cannot exceed 100 characters.")
     .nullable()
     .optional(),
+  idempotencyKey: z
+    .string()
+    .trim()
+    .min(1, "Idempotency key cannot be empty.")
+    .max(128, "Idempotency key cannot exceed 128 characters.")
+    .optional(),
   paymentDate: z
     .string()
     .datetime({ message: "Payment date must be a valid ISO date." })

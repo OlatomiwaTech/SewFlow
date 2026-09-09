@@ -25,7 +25,7 @@ RUN pnpm install --prod --frozen-lockfile
 
 COPY --from=builder /app/backend/dist ./backend/dist
 COPY --from=builder /app/backend/prisma ./backend/prisma
-RUN pnpm --filter backend prisma:generate
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 WORKDIR /app/backend
 USER node

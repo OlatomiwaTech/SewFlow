@@ -488,11 +488,15 @@ class ApiClient {
     orderId: string,
     input: CreatePaymentInput,
   ): Promise<Payment> {
+    const paymentInput = {
+      ...input,
+      idempotencyKey: input.idempotencyKey ?? crypto.randomUUID(),
+    };
     const res = await this.request<{ success: boolean; data: Payment }>(
       `/customers/${customerId}/orders/${orderId}/payments`,
       {
         method: "POST",
-        body: JSON.stringify(input),
+        body: JSON.stringify(paymentInput),
       },
     );
     return res.data;
