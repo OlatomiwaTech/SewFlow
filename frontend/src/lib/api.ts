@@ -38,8 +38,26 @@ import type {
   UpdateMaterialInput,
 } from "@/types/inventory";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ||
-  (process.env.NODE_ENV === "development" ? "http://localhost:4000/api/v1" : "");
+function normalizeApiBaseUrl(value: string): string {
+  const cleanValue = value.replace(/\/+$/, "");
+
+  if (cleanValue.endsWith("/api/v1")) {
+    return cleanValue;
+  }
+
+  if (cleanValue.endsWith("/api")) {
+    return `${cleanValue}/v1`;
+  }
+
+  return `${cleanValue}/api/v1`;
+}
+
+const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+const API_BASE_URL = configuredApiUrl
+  ? normalizeApiBaseUrl(configuredApiUrl)
+  : process.env.NODE_ENV === "development"
+    ? "http://localhost:4000/api/v1"
+    : "";
 
 function formatUrl(baseUrl: string, path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {
