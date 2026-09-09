@@ -37,5 +37,9 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+export const refreshTokenSchema = z.object({
+  refreshToken: z.string().regex(/^[a-f0-9]{80}$/, "Invalid refresh token format"),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

@@ -1,10 +1,66 @@
 import bcrypt from "bcrypt";
-import type { Prisma } from "@prisma/client";
+import { createHash, randomBytes } from "node:crypto";
 import prisma from "../lib/prisma.js";
 import { signAccessToken } from "../lib/jwt.js";
+import { connectRedis, redisClient } from "../lib/redis.js";
 import type { LoginInput, RegisterInput } from "../validators/auth.validator.js";
 
 const SALT_ROUNDS = 12;
+const REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
+const REFRESH_TOKEN_PREFIX = "sewflow:refresh:";
+
+interface RefreshSession {
+  userId: string;
+  businessId: string;
+}
+
+function hashRefreshToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+async function issueRefreshToken(session: RefreshSession): Promise<string | null> {
+  if (!redisClient) return null;
+  await connectRedis();
+
+  const token = randomBytes(40).toString("hex");
+  await redisClient.set(
+    `${REFRESH_TOKEN_PREFIX}${hashRefreshToken(token)}`,
+    JSON.stringify(session),
+    { EX: REFRESH_TOKEN_TTL_SECONDS },
+  );
+  return token;
+}
+
+async function rotateRefreshToken(token: string): Promise<RefreshSession> {
+  if (!redisClient) {
+    const error = new Error("Refresh token service is unavailable.");
+    error.name = "SERVICE_UNAVAILABLE";
+    throw error;
+  }
+
+  await connectRedis();
+  const key = `${REFRESH_TOKEN_PREFIX}${hashRefreshToken(token)}`;
+  const serialized = await redisClient.getDel(key);
+  if (!serialized) {
+    const error = new Error("Invalid or expired refresh token.");
+    error.name = "UNAUTHORIZED";
+    throw error;
+  }
+
+  try {
+    return JSON.parse(serialized) as RefreshSession;
+  } catch {
+    const error = new Error("Invalid or expired refresh token.");
+    error.name = "UNAUTHORIZED";
+    throw error;
+  }
+}
+
+async function withRefreshToken<T extends { userId: string; businessId: string }>(
+  session: T,
+): Promise<string | null> {
+  return issueRefreshToken({ userId: session.userId, businessId: session.businessId });
+}
 
 function sanitizeUser(user: {
   id: string;
@@ -44,7 +100,7 @@ export async function register(input: RegisterInput) {
 
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
-  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+  const result = await prisma.$transaction(async (tx) => {
     const business = await tx.business.create({
       data: {
         name: input.businessName,
@@ -73,9 +129,14 @@ export async function register(input: RegisterInput) {
     businessId: result.business.id,
     role: result.user.role,
   });
+  const refreshToken = await withRefreshToken({
+    userId: result.user.id,
+    businessId: result.business.id,
+  });
 
   return {
     token,
+    refreshToken,
     user: sanitizeUser(result.user),
     business: {
       id: result.business.id,
@@ -119,9 +180,14 @@ export async function login(input: LoginInput) {
     businessId: user.businessId,
     role: user.role,
   });
+  const refreshToken = await withRefreshToken({
+    userId: user.id,
+    businessId: user.businessId,
+  });
 
   return {
     token,
+    refreshToken,
     user: sanitizeUser(user),
     business: {
       id: user.business.id,
@@ -130,6 +196,54 @@ export async function login(input: LoginInput) {
       timezone: user.business.timezone,
     },
   };
+}
+
+export async function refresh(refreshToken: string) {
+  const session = await rotateRefreshToken(refreshToken);
+  const user = await prisma.user.findFirst({
+    where: {
+      id: session.userId,
+      businessId: session.businessId,
+      isActive: true,
+      deletedAt: null,
+    },
+    include: { business: true },
+  });
+
+  if (!user) {
+    const error = new Error("Invalid or expired refresh token.");
+    error.name = "UNAUTHORIZED";
+    throw error;
+  }
+
+  const token = signAccessToken({
+    userId: user.id,
+    email: user.email,
+    businessId: user.businessId,
+    role: user.role,
+  });
+  const nextRefreshToken = await withRefreshToken({
+    userId: user.id,
+    businessId: user.businessId,
+  });
+
+  return { token, refreshToken: nextRefreshToken };
+}
+
+export async function revokeAllSessions(userId: string): Promise<void> {
+  if (!redisClient) return;
+  await connectRedis();
+
+  for await (const key of redisClient.scanIterator({ MATCH: `${REFRESH_TOKEN_PREFIX}*`, COUNT: 100 })) {
+    const serialized = await redisClient.get(key);
+    if (!serialized) continue;
+    try {
+      const session = JSON.parse(serialized) as RefreshSession;
+      if (session.userId === userId) await redisClient.del(key);
+    } catch {
+      await redisClient.del(key);
+    }
+  }
 }
 
 export async function getCurrentUser(userId: string, businessId: string) {

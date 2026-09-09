@@ -11,7 +11,7 @@ export interface AuthTokenPayload {
 
 export function signAccessToken(payload: AuthTokenPayload): string {
   return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN as SignOptions["expiresIn"],
+    expiresIn: "15m" as SignOptions["expiresIn"],
   });
 }
 

@@ -5,7 +5,7 @@ import { requestContext, type RequestContext } from "../lib/requestContext.js";
 export function requestTracing(req: Request, _res: Response, next: NextFunction): void {
   const context: RequestContext = {
     reqId: randomUUID(),
-    ipAddress: req.ip,
+    ipAddress: req.ip ?? "unknown",
   };
 
   requestContext.run(context, next);

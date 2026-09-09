@@ -17,7 +17,7 @@ type TransactionDelegate = {
 
 type TransactionClientLike = {
   $transaction<T>(callback: (tx: TransactionClientLike) => Promise<T>): Promise<T>;
-  [model: string]: TransactionDelegate | TransactionClientLike["$transaction"];
+  [model: string]: unknown;
 };
 
 export function createAuditExtension(baseClient: PrismaClient) {
@@ -33,12 +33,16 @@ export function createAuditExtension(baseClient: PrismaClient) {
           }
 
           const context = getRequestContext();
-          if (!context?.tenantId || !context.userId) {
+          if (!context) {
+            return query(args);
+          }
+          if (!context.tenantId || !context.userId) {
             throw new Error("A validated request context is required for audited mutations.");
           }
 
           return client.$transaction(async (tx) => {
-            const delegate = tx[model] as TransactionDelegate;
+            const delegateName = `${model.slice(0, 1).toLowerCase()}${model.slice(1)}`;
+            const delegate = tx[delegateName] as TransactionDelegate;
             const typedArgs = args as Record<string, unknown>;
             let previousState: AuditState | null = null;
 
@@ -58,7 +62,8 @@ export function createAuditExtension(baseClient: PrismaClient) {
               throw new Error(`Unable to determine audited ${model} entity id.`);
             }
 
-            await tx.auditLog.create({
+            const auditLog = tx.auditLog as TransactionDelegate;
+            await auditLog.create({
               data: {
                 tenantId: context.tenantId,
                 actorId: context.userId,
