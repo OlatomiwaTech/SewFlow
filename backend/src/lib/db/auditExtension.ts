@@ -1,4 +1,5 @@
-import { Prisma, type PrismaClient } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { getRequestContext } from "../requestContext.js";
 
