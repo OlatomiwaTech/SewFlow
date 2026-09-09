@@ -38,19 +38,18 @@ import type {
   UpdateMaterialInput,
 } from "@/types/inventory";
 
-const viteApiBaseUrl =
-  typeof import.meta !== "undefined" && typeof import.meta.env !== "undefined"
-    ? import.meta.env.VITE_API_BASE_URL
-    : undefined;
-
-const API_BASE_URL =
-  viteApiBaseUrl ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:5000/api/v1";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ||
+  (process.env.NODE_ENV === "development" ? "http://localhost:4000/api/v1" : "");
 
 function formatUrl(baseUrl: string, path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
+  }
+
+  if (!baseUrl) {
+    throw new Error(
+      "API URL is not configured. Set NEXT_PUBLIC_API_URL in the deployment environment.",
+    );
   }
 
   const cleanBase = baseUrl.replace(/\/+$/, "");
