@@ -38,29 +38,41 @@ import type {
   UpdateMaterialInput,
 } from "@/types/inventory";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== "undefined" ? "/api" : "http://localhost:4000/api");
+function normalizeApiBaseUrl(value: string): string {
+  const cleanValue = value.replace(/\/+$/, "");
+
+  if (cleanValue.endsWith("/api/v1")) {
+    return cleanValue;
+  }
+
+  if (cleanValue.endsWith("/api")) {
+    return `${cleanValue}/v1`;
+  }
+
+  return `${cleanValue}/api/v1`;
+}
+
+const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+const API_BASE_URL = configuredApiUrl
+  ? normalizeApiBaseUrl(configuredApiUrl)
+  : process.env.NODE_ENV === "development"
+    ? "http://localhost:4000/api/v1"
+    : "";
 
 function formatUrl(baseUrl: string, path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
 
+  if (!baseUrl) {
+    throw new Error(
+      "API URL is not configured. Set NEXT_PUBLIC_API_URL in the deployment environment.",
+    );
+  }
+
   const cleanBase = baseUrl.replace(/\/+$/, "");
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
-
-  if (cleanBase === "/api" || cleanBase.endsWith("/api")) {
-    if (cleanPath === "/api") return cleanBase;
-    if (cleanPath.startsWith("/api/")) return `${cleanBase}${cleanPath.slice(4)}`;
-    return `${cleanBase}${cleanPath}`;
-  }
-
-  if (cleanPath === "/api" || cleanPath.startsWith("/api/")) {
-    return `${cleanBase}${cleanPath}`;
-  }
-
-  return cleanBase ? `${cleanBase}/api${cleanPath}` : `/api${cleanPath}`;
+  return `${cleanBase}${cleanPath}`;
 }
 
 // Utility function for general API requests
@@ -84,6 +96,7 @@ export async function api<T>(
   try {
     response = await fetch(url, {
       ...fetchOptions,
+      credentials: "include",
       headers,
     });
   } catch (err) {
@@ -146,6 +159,7 @@ class ApiClient {
     try {
       response = await fetch(url, {
         ...options,
+        credentials: "include",
         headers,
       });
     } catch (err) {
@@ -474,11 +488,15 @@ class ApiClient {
     orderId: string,
     input: CreatePaymentInput,
   ): Promise<Payment> {
+    const paymentInput = {
+      ...input,
+      idempotencyKey: input.idempotencyKey ?? crypto.randomUUID(),
+    };
     const res = await this.request<{ success: boolean; data: Payment }>(
       `/customers/${customerId}/orders/${orderId}/payments`,
       {
         method: "POST",
-        body: JSON.stringify(input),
+        body: JSON.stringify(paymentInput),
       },
     );
     return res.data;

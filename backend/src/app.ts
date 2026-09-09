@@ -21,6 +21,7 @@ import { requestTracing } from "./middleware/tracing.js";
 const app = express();
 
 app.use(requestTracing);
+app.set("trust proxy", 1);
 
 const allowedOrigins = new Set(env.CORS_ORIGIN.map((origin) => origin.replace(/\/+$/, "")));
 const configuredRedisClient = redisClient;

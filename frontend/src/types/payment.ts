@@ -30,6 +30,7 @@ export interface CreatePaymentInput {
   amount: number;
   method: PaymentMethod;
   reference?: string | null;
+  idempotencyKey?: string;
   paymentDate?: string | null;
   notes?: string | null;
 }

@@ -266,6 +266,7 @@ export async function deductStock(
   }
 
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Material" WHERE "id" = ${materialId} AND "businessId" = ${businessId} FOR UPDATE`;
     const material = await tx.material.findFirst({
       where: {
         id: materialId,
@@ -336,6 +337,7 @@ export async function restockItems(
   }
 
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Material" WHERE "id" = ${materialId} AND "businessId" = ${businessId} FOR UPDATE`;
     const material = await tx.material.findFirst({
       where: {
         id: materialId,
@@ -392,6 +394,7 @@ export async function adjustStock(
   }
 
   const result = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Material" WHERE "id" = ${materialId} AND "businessId" = ${businessId} FOR UPDATE`;
     const material = await tx.material.findFirst({
       where: {
         id: materialId,

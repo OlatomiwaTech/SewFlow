@@ -93,35 +93,55 @@ export async function createPayment(
   orderId: string,
   input: CreatePaymentInput,
 ) {
-  const order = await verifyOrderOwnership(businessId, customerId, orderId);
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${orderId} AND "businessId" = ${businessId} FOR UPDATE`;
+    const order = await tx.order.findFirst({
+      where: { id: orderId, customerId, businessId, deletedAt: null },
+      include: { payments: true },
+    });
 
-  const orderTotal = Math.round(Number(order.totalAmount) * 100) / 100;
-  const currentTotalPaid = Math.round(
-    order.payments.reduce((sum, p) => sum + Number(p.amount), 0) * 100
-  ) / 100;
+    if (!order) {
+      const error = new Error("Order not found.");
+      error.name = "NOT_FOUND";
+      throw error;
+    }
 
-  const inputAmount = Math.round(input.amount * 100) / 100;
-  const newTotalPaid = Math.round((currentTotalPaid + inputAmount) * 100) / 100;
+    if (input.idempotencyKey) {
+      const existingPayment = await tx.payment.findFirst({
+        where: { orderId: order.id, idempotencyKey: input.idempotencyKey },
+      });
+      if (existingPayment) return existingPayment;
+    }
 
-  if (newTotalPaid > orderTotal) {
-    const remaining = Math.max(0, Math.round((orderTotal - currentTotalPaid) * 100) / 100);
-    const error = new Error(
-      `Payment amount (${inputAmount}) exceeds remaining balance (${remaining}).`,
+    const orderTotal = new Prisma.Decimal(order.totalAmount);
+    const currentTotalPaid = order.payments.reduce(
+      (sum, payment) => sum.plus(payment.amount),
+      new Prisma.Decimal(0),
     );
-    error.name = "VALIDATION_ERROR";
-    throw error;
-  }
+    const inputAmount = new Prisma.Decimal(input.amount).toDecimalPlaces(2);
+    const newTotalPaid = currentTotalPaid.plus(inputAmount);
 
-  return prisma.payment.create({
-    data: {
-      businessId,
-      orderId: order.id,
-      amount: new Prisma.Decimal(inputAmount),
-      method: input.method,
-      reference: input.reference?.trim() || null,
-      paymentDate: input.paymentDate ? new Date(input.paymentDate) : new Date(),
-      notes: input.notes?.trim() || null,
-    },
+    if (newTotalPaid.gt(orderTotal)) {
+      const remaining = Prisma.Decimal.max(orderTotal.minus(currentTotalPaid), new Prisma.Decimal(0));
+      const error = new Error(
+        `Payment amount (${inputAmount.toFixed(2)}) exceeds remaining balance (${remaining.toFixed(2)}).`,
+      );
+      error.name = "VALIDATION_ERROR";
+      throw error;
+    }
+
+    return tx.payment.create({
+      data: {
+        businessId,
+        orderId: order.id,
+        amount: inputAmount,
+        method: input.method,
+        reference: input.reference?.trim() || null,
+        idempotencyKey: input.idempotencyKey?.trim() || null,
+        paymentDate: input.paymentDate ? new Date(input.paymentDate) : new Date(),
+        notes: input.notes?.trim() || null,
+      },
+    });
   });
 }
 
@@ -132,63 +152,52 @@ export async function updatePayment(
   paymentId: string,
   input: UpdatePaymentInput,
 ) {
-  const order = await verifyOrderOwnership(businessId, customerId, orderId);
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${orderId} AND "businessId" = ${businessId} FOR UPDATE`;
+    const order = await tx.order.findFirst({
+      where: { id: orderId, customerId, businessId, deletedAt: null },
+      include: { payments: true },
+    });
+    const existingPayment = await tx.payment.findFirst({
+      where: { id: paymentId, orderId, businessId, deletedAt: null },
+    });
 
-  const existingPayment = await prisma.payment.findFirst({
-    where: {
-      id: paymentId,
-      orderId: order.id,
-      businessId,
-    },
-  });
+    if (!order || !existingPayment) {
+      const error = new Error(!order ? "Order not found." : "Payment record not found.");
+      error.name = "NOT_FOUND";
+      throw error;
+    }
 
-  if (!existingPayment) {
-    const error = new Error("Payment record not found.");
-    error.name = "NOT_FOUND";
-    throw error;
-  }
+    const orderTotal = new Prisma.Decimal(order.totalAmount);
+    const otherPaymentsPaid = order.payments
+      .filter((payment) => payment.id !== paymentId)
+      .reduce((sum, payment) => sum.plus(payment.amount), new Prisma.Decimal(0));
+    const targetAmount = new Prisma.Decimal(
+      input.amount !== undefined ? input.amount : existingPayment.amount,
+    ).toDecimalPlaces(2);
+    const newTotalPaid = otherPaymentsPaid.plus(targetAmount);
 
-  const orderTotal = Math.round(Number(order.totalAmount) * 100) / 100;
-  const otherPaymentsPaid = Math.round(
-    order.payments
-      .filter((p) => p.id !== paymentId)
-      .reduce((sum, p) => sum + Number(p.amount), 0) * 100
-  ) / 100;
+    if (newTotalPaid.gt(orderTotal)) {
+      const remaining = Prisma.Decimal.max(orderTotal.minus(otherPaymentsPaid), new Prisma.Decimal(0));
+      const error = new Error(
+        `Payment amount (${targetAmount.toFixed(2)}) exceeds remaining balance (${remaining.toFixed(2)}).`,
+      );
+      error.name = "VALIDATION_ERROR";
+      throw error;
+    }
 
-  const targetAmount = Math.round(
-    (input.amount !== undefined ? input.amount : Number(existingPayment.amount)) * 100
-  ) / 100;
-
-  const newTotalPaid = Math.round((otherPaymentsPaid + targetAmount) * 100) / 100;
-
-  if (newTotalPaid > orderTotal) {
-    const remaining = Math.max(0, Math.round((orderTotal - otherPaymentsPaid) * 100) / 100);
-    const error = new Error(
-      `Payment amount (${targetAmount}) exceeds remaining balance (${remaining}).`,
-    );
-    error.name = "VALIDATION_ERROR";
-    throw error;
-  }
-
-  return prisma.payment.update({
-    where: {
-      id: existingPayment.id,
-    },
-    data: {
-      ...(input.amount !== undefined && {
-        amount: new Prisma.Decimal(targetAmount),
-      }),
-      ...(input.method !== undefined && { method: input.method }),
-      ...(input.reference !== undefined && {
-        reference: input.reference?.trim() || null,
-      }),
-      ...(input.paymentDate !== undefined && {
-        paymentDate: input.paymentDate ? new Date(input.paymentDate) : new Date(),
-      }),
-      ...(input.notes !== undefined && {
-        notes: input.notes?.trim() || null,
-      }),
-    },
+    return tx.payment.update({
+      where: { id: existingPayment.id },
+      data: {
+        ...(input.amount !== undefined && { amount: targetAmount }),
+        ...(input.method !== undefined && { method: input.method }),
+        ...(input.reference !== undefined && { reference: input.reference?.trim() || null }),
+        ...(input.paymentDate !== undefined && {
+          paymentDate: input.paymentDate ? new Date(input.paymentDate) : new Date(),
+        }),
+        ...(input.notes !== undefined && { notes: input.notes?.trim() || null }),
+      },
+    });
   });
 }
 
