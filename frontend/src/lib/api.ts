@@ -39,8 +39,8 @@ import type {
 } from "@/types/inventory";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== "undefined" ? "/api" : "http://localhost:4000/api");
+  import.meta.env.VITE_API_BASE_URL ||
+  "http://localhost:5000/api/v1";
 
 function formatUrl(baseUrl: string, path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {
@@ -49,18 +49,7 @@ function formatUrl(baseUrl: string, path: string): string {
 
   const cleanBase = baseUrl.replace(/\/+$/, "");
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
-
-  if (cleanBase === "/api" || cleanBase.endsWith("/api")) {
-    if (cleanPath === "/api") return cleanBase;
-    if (cleanPath.startsWith("/api/")) return `${cleanBase}${cleanPath.slice(4)}`;
-    return `${cleanBase}${cleanPath}`;
-  }
-
-  if (cleanPath === "/api" || cleanPath.startsWith("/api/")) {
-    return `${cleanBase}${cleanPath}`;
-  }
-
-  return cleanBase ? `${cleanBase}/api${cleanPath}` : `/api${cleanPath}`;
+  return `${cleanBase}${cleanPath}`;
 }
 
 // Utility function for general API requests
@@ -84,6 +73,7 @@ export async function api<T>(
   try {
     response = await fetch(url, {
       ...fetchOptions,
+      credentials: "include",
       headers,
     });
   } catch (err) {
@@ -146,6 +136,7 @@ class ApiClient {
     try {
       response = await fetch(url, {
         ...options,
+        credentials: "include",
         headers,
       });
     } catch (err) {
