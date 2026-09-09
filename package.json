@@ -2,6 +2,7 @@
   "name": "sewflow",
   "private": true,
   "version": "1.0.0",
+  "packageManager": "pnpm@9.15.5",
   "workspaces": [
     "frontend",
     "backend"
@@ -12,6 +13,9 @@
     "start": "npm run start --workspace frontend",
     "frontend": "npm run dev --workspace frontend",
     "backend": "npm run dev --workspace backend",
+    "backend:build": "pnpm --filter backend build",
+    "backend:start": "pnpm --filter backend start:prod",
+    "db:migrate:deploy": "pnpm --filter backend prisma:migrate:deploy",
     "typecheck": "npm run typecheck --workspace backend",
     "prisma:generate": "npm run prisma:generate --workspace backend",
     "prisma:validate": "npm run prisma:validate --workspace backend",

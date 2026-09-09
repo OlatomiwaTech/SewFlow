@@ -34,6 +34,7 @@ jobs:
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://sewflow:sewflow@localhost:5432/sewflow_test
+      DIRECT_URL: postgresql://sewflow:sewflow@localhost:5432/sewflow_test
       REDIS_URL: redis://localhost:6379
       JWT_SECRET: ci-only-secret-that-is-at-least-32-characters-long
       JWT_EXPIRES_IN: 15m

@@ -5,8 +5,11 @@ import logger from "./lib/logger.js";
 import { connectRedis, redisClient } from "./lib/redis.js";
 
 let server: ReturnType<typeof app.listen> | undefined;
+let shutdownPromise: Promise<void> | undefined;
+const shutdownTimeoutMs = 10_000;
 
 async function start() {
+  await prisma.$connect();
   await connectRedis();
   server = app.listen(env.PORT, () => {
     logger.info({ port: env.PORT }, "SewFlow API started");
@@ -14,19 +17,36 @@ async function start() {
 }
 
 async function shutdown(signal: string) {
-  logger.info({ signal }, "Shutdown requested");
+  if (shutdownPromise) return shutdownPromise;
 
-  if (!server) {
-    await redisClient?.disconnect();
-    process.exit(0);
-  }
+  shutdownPromise = (async () => {
+    logger.info({ signal }, "Shutdown requested");
+    const forceExitTimer = setTimeout(() => {
+      logger.error("Graceful shutdown timed out");
+      process.exit(1);
+    }, shutdownTimeoutMs);
+    forceExitTimer.unref();
 
-  server.close(async () => {
-    await prisma.$disconnect();
-    await redisClient?.disconnect();
-    logger.info("SewFlow API stopped");
-    process.exit(0);
-  });
+    try {
+      if (server) {
+        server.closeIdleConnections?.();
+        await new Promise<void>((resolve, reject) => {
+          server?.close((error) => (error ? reject(error) : resolve()));
+        });
+      }
+
+      await Promise.allSettled([
+        prisma.$disconnect(),
+        redisClient?.isOpen ? redisClient.disconnect() : Promise.resolve(),
+      ]);
+      logger.info("SewFlow API stopped");
+      process.exitCode = 0;
+    } finally {
+      clearTimeout(forceExitTimer);
+    }
+  })();
+
+  return shutdownPromise;
 }
 
 void start().catch((error) => {
